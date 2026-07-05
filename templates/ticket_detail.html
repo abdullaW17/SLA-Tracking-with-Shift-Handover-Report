@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Ticket {{ ticket.external_id }}{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('tickets.ticket_list') }}" class="btn btn-link px-0"><i class="bi bi-arrow-left"></i> Back to tickets</a>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">{{ ticket.external_id }} &mdash; {{ ticket.title }}</h3>
+    <span class="badge bg-{{ sla_badge_color.get(ticket.sla_status, 'secondary') }} badge-sla fs-6">{{ ticket.sla_status or 'N/A' }}</span>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card p-3">
+            <h6>Ticket Details</h6>
+            <table class="table table-sm">
+                <tr><th>Source System</th><td>{{ ticket.source_system }}</td></tr>
+                <tr><th>Status</th><td>{{ ticket.status or '-' }}</td></tr>
+                <tr><th>Severity</th><td>{{ ticket.severity or '-' }}</td></tr>
+                <tr><th>Priority</th><td>{{ ticket.priority or '-' }}</td></tr>
+                <tr><th>Criticality</th><td>{{ ticket.criticality or '-' }}</td></tr>
+                <tr><th>Assigned To</th><td>{{ ticket.assigned_to or '-' }}</td></tr>
+                <tr><th>Created At (source)</th><td>{{ ticket.created_at_source or '-' }}</td></tr>
+                <tr><th>Closed At (source)</th><td>{{ ticket.closed_at_source or '-' }}</td></tr>
+                <tr><th>Last Synced</th><td>{{ ticket.last_synced_at or '-' }}</td></tr>
+            </table>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card p-3">
+            <h6>SLA Details</h6>
+            <table class="table table-sm">
+                <tr><th>Matched SLA Rule</th><td>{{ ticket.sla_rule.rule_name if ticket.sla_rule_id and ticket.sla_rule else 'No Matching Rule' }}</td></tr>
+                <tr><th>Response Deadline</th><td>{{ ticket.response_deadline or '-' }}</td></tr>
+                <tr><th>Resolution Deadline</th><td>{{ ticket.resolution_deadline or '-' }}</td></tr>
+                <tr><th>Response SLA Status</th><td>{{ ticket.response_sla_status or '-' }}</td></tr>
+                <tr><th>Resolution SLA Status</th><td>{{ ticket.resolution_sla_status or '-' }}</td></tr>
+                <tr><th>Breach Duration</th><td>{{ ticket.breach_duration_minutes or 0 }} minutes</td></tr>
+            </table>
+            <form method="POST" action="{{ url_for('tickets.trigger_recalculate') }}">
+                <button class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-repeat"></i> Recalculate SLA for all open tickets</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="card p-3 mt-4">
+    <h6>Raw Source Payload</h6>
+    <pre class="small bg-light p-2 rounded" style="max-height: 300px; overflow:auto;">{{ ticket.raw_payload_json or 'No raw payload stored.' }}</pre>
+</div>
+{% endblock %}

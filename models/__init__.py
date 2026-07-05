@@ -1,0 +1,26 @@
+"""
+models package
+---------------
+Import all models here so that Flask-Migrate / SQLAlchemy metadata
+discovers them when `db` is initialized in app.py.
+"""
+
+from .client import Client
+from .user import User
+from .ticket import Ticket
+from .sla_rule import SLARule
+from .field_mapping import FieldMapping
+from .report import Report
+from .setting import Setting
+from .sync_log import SyncLog
+
+__all__ = [
+    "Client",
+    "User",
+    "Ticket",
+    "SLARule",
+    "FieldMapping",
+    "Report",
+    "Setting",
+    "SyncLog",
+]

@@ -1,0 +1,62 @@
+body {
+    background-color: #f4f6f9;
+}
+
+.navbar-brand {
+    font-weight: 600;
+}
+
+.metric-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    transition: transform 0.15s ease;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+}
+
+.metric-value {
+    font-size: 1.9rem;
+    font-weight: 700;
+}
+
+.metric-label {
+    font-size: 0.85rem;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.badge-sla {
+    font-size: 0.78rem;
+    padding: 0.4em 0.7em;
+}
+
+.login-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1f2937, #2563eb);
+}
+
+.login-card {
+    width: 100%;
+    max-width: 380px;
+    border-radius: 16px;
+}
+
+table.table thead th {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    color: #6b7280;
+    border-bottom: 2px solid #e5e7eb;
+}

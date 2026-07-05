@@ -1,0 +1,128 @@
+"""
+routes/sla_rule_routes.py
+----------------------------
+Full CRUD for SLA rules. Admin-only (manage_sla_rules permission).
+
+Multi-tenancy (Gap #1): rules are created/listed per client.
+New fields: priority (Gap #2), business_hours_only (Gap #3), pause_status (Gap #4).
+"""
+
+from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask_login import login_required
+
+from extensions import db
+from models import SLARule, Ticket, Client
+from routes.decorators import permission_required
+
+sla_rule_bp = Blueprint("sla_rules", __name__)
+
+
+@sla_rule_bp.route("/sla-rules")
+@login_required
+@permission_required("manage_sla_rules")
+def rule_list():
+    client_id = request.args.get("client_id", type=int)
+    query = SLARule.query
+    if client_id:
+        query = query.filter_by(client_id=client_id)
+    rules = query.order_by(SLARule.client_id.asc(), SLARule.priority.asc(), SLARule.id.asc()).all()
+    clients = Client.query.filter_by(is_active=True).order_by(Client.name).all()
+    return render_template(
+        "sla_rules.html",
+        rules=rules,
+        clients=clients,
+        selected_client_id=client_id,
+    )
+
+
+def _form_to_rule_fields(form):
+    return dict(
+        client_id=int(form.get("client_id")) if form.get("client_id") else None,
+        rule_name=form.get("rule_name", "").strip(),
+        priority=int(form.get("priority", 0) or 0),
+        field_name=form.get("field_name", "").strip(),
+        field_value=form.get("field_value", "").strip(),
+        response_sla_minutes=(int(form["response_sla_minutes"])
+                               if form.get("response_sla_minutes") else None),
+        resolution_sla_minutes=int(form.get("resolution_sla_minutes", 0) or 0),
+        warning_threshold_percent=int(form.get("warning_threshold_percent", 80) or 80),
+        business_hours_only=form.get("business_hours_only") == "on",
+        applies_to_status=form.get("applies_to_status", "").strip() or None,
+        stop_status=form.get("stop_status", "").strip() or None,
+        pause_status=form.get("pause_status", "").strip() or None,
+        is_active=form.get("is_active") == "on",
+    )
+
+
+@sla_rule_bp.route("/sla-rules/create", methods=["GET", "POST"])
+@login_required
+@permission_required("manage_sla_rules")
+def rule_create():
+    clients = Client.query.filter_by(is_active=True).order_by(Client.name).all()
+
+    if request.method == "POST":
+        fields = _form_to_rule_fields(request.form)
+        if not fields["rule_name"] or not fields["field_name"] or not fields["field_value"]:
+            flash("Rule name, field name, and field value are required.", "danger")
+            return render_template("sla_rule_form.html", rule=fields, clients=clients)
+        if not fields["client_id"]:
+            flash("A client must be selected.", "danger")
+            return render_template("sla_rule_form.html", rule=fields, clients=clients)
+
+        rule = SLARule(**fields)
+        db.session.add(rule)
+        db.session.commit()
+        flash(f"SLA rule '{rule.rule_name}' created.", "success")
+        return redirect(url_for("sla_rules.rule_list"))
+
+    return render_template("sla_rule_form.html", rule=None, clients=clients)
+
+
+@sla_rule_bp.route("/sla-rules/<int:rule_id>/edit", methods=["GET", "POST"])
+@login_required
+@permission_required("manage_sla_rules")
+def rule_edit(rule_id):
+    rule = SLARule.query.get_or_404(rule_id)
+    clients = Client.query.filter_by(is_active=True).order_by(Client.name).all()
+
+    if request.method == "POST":
+        fields = _form_to_rule_fields(request.form)
+        for key, value in fields.items():
+            setattr(rule, key, value)
+        db.session.commit()
+        flash(f"SLA rule '{rule.rule_name}' updated.", "success")
+        return redirect(url_for("sla_rules.rule_list"))
+
+    return render_template("sla_rule_form.html", rule=rule, clients=clients)
+
+
+@sla_rule_bp.route("/sla-rules/<int:rule_id>/delete", methods=["POST"])
+@login_required
+@permission_required("manage_sla_rules")
+def rule_delete(rule_id):
+    rule = SLARule.query.get_or_404(rule_id)
+
+    in_use = Ticket.query.filter_by(sla_rule_id=rule.id).count()
+    if in_use:
+        flash(
+            f"Cannot delete '{rule.rule_name}': {in_use} ticket(s) reference it. "
+            "Disable it instead.",
+            "warning",
+        )
+        return redirect(url_for("sla_rules.rule_list"))
+
+    db.session.delete(rule)
+    db.session.commit()
+    flash("SLA rule deleted.", "info")
+    return redirect(url_for("sla_rules.rule_list"))
+
+
+@sla_rule_bp.route("/sla-rules/<int:rule_id>/toggle", methods=["POST"])
+@login_required
+@permission_required("manage_sla_rules")
+def rule_toggle(rule_id):
+    rule = SLARule.query.get_or_404(rule_id)
+    rule.is_active = not rule.is_active
+    db.session.commit()
+    flash(f"SLA rule '{rule.rule_name}' is now {'active' if rule.is_active else 'inactive'}.", "info")
+    return redirect(url_for("sla_rules.rule_list"))

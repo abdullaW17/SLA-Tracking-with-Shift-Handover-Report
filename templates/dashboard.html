@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="mb-0">Dashboard</h3>
+    <div class="d-flex gap-2 align-items-center">
+        <form method="GET" class="d-flex gap-2 align-items-center">
+            <select name="client_id" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+                <option value="">All Clients</option>
+                {% for c in clients %}
+                <option value="{{ c.id }}" {% if selected_client_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </form>
+        <form method="POST" action="{{ url_for('tickets.trigger_recalculate') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline-primary btn-sm" type="submit">
+                <i class="bi bi-arrow-repeat"></i> Recalculate SLA
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-6">
+        <div class="card metric-card p-3">
+            <div class="metric-label">Total Tickets</div>
+            <div class="metric-value">{{ metrics.total_tickets }}</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card metric-card p-3">
+            <div class="metric-label">Open</div>
+            <div class="metric-value text-primary">{{ metrics.open_tickets }}</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card metric-card p-3">
+            <div class="metric-label">Closed</div>
+            <div class="metric-value text-secondary">{{ metrics.closed_tickets }}</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card metric-card p-3">
+            <div class="metric-label">SLA Compliance</div>
+            <div class="metric-value text-success">{{ metrics.sla_compliance_percent }}%</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-6">
+        <div class="card metric-card p-3">
+            <div class="metric-label">Within SLA</div>
+            <div class="metric-value text-success">{{ metrics.within_sla }}</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card metric-card p-3">
+            <div class="metric-label">Near Breach</div>
+            <div class="metric-value text-warning">{{ metrics.near_breach }}</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card metric-card p-3">
+            <div class="metric-label">Breached</div>
+            <div class="metric-value text-danger">{{ metrics.breached }}</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card metric-card p-3">
+            <div class="metric-label">No Matching Rule</div>
+            <div class="metric-value text-muted">{{ metrics.no_matching_rule }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-3 col-6">
+        <div class="card metric-card p-3">
+            <div class="metric-label">Avg Resolution Time</div>
+            <div class="metric-value" style="font-size:1.3rem;">{{ metrics.avg_resolution_minutes }} min</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card p-3">
+            <h6>SLA Status Distribution</h6>
+            <canvas id="slaStatusChart" height="200"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card p-3">
+            <h6>Severity / Priority / Criticality Distribution</h6>
+            <canvas id="taxonomyChart" height="200"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card p-3">
+            <h6>Breached vs Non-Breached</h6>
+            <canvas id="breachChart" height="200"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card p-3">
+            <h6>Monthly SLA Trend</h6>
+            <canvas id="trendChart" height="200"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="card p-3">
+    <h6>Analyst-wise Performance</h6>
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr><th>Analyst</th><th>Total Tickets</th><th>Breached</th><th>Compliance</th></tr>
+        </thead>
+        <tbody>
+        {% for analyst, stats in metrics.analyst_stats.items() %}
+            <tr>
+                <td>{{ analyst }}</td>
+                <td>{{ stats.total }}</td>
+                <td>{{ stats.breached }}</td>
+                <td>
+                    {% set compliance = ((stats.total - stats.breached) / stats.total * 100) | round(1) if stats.total else 0 %}
+                    {{ compliance }}%
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const metrics = {{ metrics | tojson }};
+
+new Chart(document.getElementById('slaStatusChart'), {
+    type: 'doughnut',
+    data: {
+        labels: Object.keys(metrics.sla_status_distribution),
+        datasets: [{
+            data: Object.values(metrics.sla_status_distribution),
+            backgroundColor: ['#22c55e', '#f59e0b', '#ef4444', '#9ca3af']
+        }]
+    },
+    options: { responsive: true }
+});
+
+new Chart(document.getElementById('taxonomyChart'), {
+    type: 'bar',
+    data: {
+        labels: Object.keys(metrics.taxonomy_distribution),
+        datasets: [{
+            label: 'Ticket Count',
+            data: Object.values(metrics.taxonomy_distribution),
+            backgroundColor: '#2563eb'
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } } }
+});
+
+new Chart(document.getElementById('breachChart'), {
+    type: 'pie',
+    data: {
+        labels: ['Breached', 'Not Breached'],
+        datasets: [{
+            data: [metrics.breached, metrics.total_tickets - metrics.breached],
+            backgroundColor: ['#ef4444', '#22c55e']
+        }]
+    },
+    options: { responsive: true }
+});
+
+new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+        labels: metrics.monthly_trend.labels,
+        datasets: [
+            { label: 'Within SLA', data: metrics.monthly_trend.within, borderColor: '#22c55e', tension: 0.3 },
+            { label: 'Breached', data: metrics.monthly_trend.breached, borderColor: '#ef4444', tension: 0.3 }
+        ]
+    },
+    options: { responsive: true }
+});
+</script>
+{% endblock %}
