@@ -20,7 +20,7 @@
 </div>
 
 <p class="text-muted small">
-    Rules are matched generically: <code>if getattr(ticket, rule.field_name) == rule.field_value</code>.
+    Rules are matched generically: a rule is applied if <strong>all</strong> of its configured conditions match the ticket attributes.
     Rules are scoped per client and evaluated in priority order (lower = first). First match wins.
 </p>
 
@@ -32,8 +32,7 @@
                     <th>Client</th>
                     <th>Priority</th>
                     <th>Rule Name</th>
-                    <th>Field Name</th>
-                    <th>Field Value</th>
+                    <th>Matching Conditions</th>
                     <th>Response (min)</th>
                     <th>Resolution (min)</th>
                     <th>Warning %</th>
@@ -47,9 +46,30 @@
                 <tr>
                     <td>{{ rule.client.name if rule.client else '—' }}</td>
                     <td>{{ rule.priority }}</td>
-                    <td>{{ rule.rule_name }}</td>
-                    <td><code>{{ rule.field_name }}</code></td>
-                    <td><code>{{ rule.field_value }}</code></td>
+                    <td>
+                        <strong>{{ rule.rule_name }}</strong>
+                        {% if rule.description %}
+                            <div class="text-muted small mt-1">{{ rule.description }}</div>
+                        {% endif %}
+                        {% if rule.escalation_email %}
+                            <div class="text-info small mt-1"><i class="bi bi-envelope-fill"></i> Escalation: <code>{{ rule.escalation_email }}</code></div>
+                        {% endif %}
+                        <div class="text-muted mt-1" style="font-size: 0.75rem;">
+                            {% if rule.created_by %}
+                                Created by <code>{{ rule.created_by }}</code>
+                            {% endif %}
+                            {% if rule.updated_by and rule.updated_by != rule.created_by %}
+                                | Updated by <code>{{ rule.updated_by }}</code>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        {% for cond in rule.conditions %}
+                            <span class="badge bg-light text-dark border mb-1"><code>{{ cond.field_name }}</code> = <code>{{ cond.field_value }}</code></span>{% if not loop.last %}<br>{% endif %}
+                        {% else %}
+                            <span class="text-muted small">— None —</span>
+                        {% endfor %}
+                    </td>
                     <td>{{ rule.response_sla_minutes or '-' }}</td>
                     <td>{{ rule.resolution_sla_minutes }}</td>
                     <td>{{ rule.warning_threshold_percent }}%</td>

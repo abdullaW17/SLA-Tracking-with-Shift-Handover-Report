@@ -21,6 +21,7 @@ exponential backoff with retries on transient failures (timeouts, 429, 5xx).
 """
 
 import logging
+from functools import lru_cache
 import time as _time
 
 import requests
@@ -291,3 +292,35 @@ def fetch_all_alerts(max_pages=100, per_page=50):
         )
 
     return all_alerts
+
+
+@lru_cache(maxsize=1)
+def fetch_classifications():
+    """Fetch the list of case classifications from DFIR-IRIS."""
+    try:
+        base_url, api_key, verify_ssl, timeout = _get_config()
+    except IrisApiError as exc:
+        logger.warning("Could not load IRIS config for fetching classifications: %s", exc)
+        return []
+
+    try:
+        resp = _request_with_retry(
+            "GET",
+            f"{base_url}/manage/case-classifications/list",
+            headers=_headers(api_key),
+            verify=verify_ssl,
+            timeout=timeout,
+        )
+        if resp.status_code != 200:
+            logger.warning("Failed to fetch classifications: HTTP %s", resp.status_code)
+            return []
+        payload = resp.json()
+        if isinstance(payload, dict):
+            return payload.get("data", [])
+        elif isinstance(payload, list):
+            return payload
+        return []
+    except Exception as exc:
+        logger.warning("Failed to fetch classifications: %s", exc)
+        return []
+

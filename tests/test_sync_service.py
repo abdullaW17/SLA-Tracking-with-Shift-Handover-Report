@@ -200,3 +200,66 @@ class TestSoftDeleteMissingTickets:
             # CASE-A should be untouched
             t1_updated = Ticket.query.filter_by(external_id="CASE-A").first()
             assert t1_updated.status == "open"
+
+
+class TestCustomAttributesParsing:
+    """Verify that priority and criticality are correctly extracted from nested custom attributes."""
+
+    def test_custom_attributes_parsed_successfully(self):
+        from services.field_mapping_service import normalize_ticket
+        source_ticket = {
+            "case_id": "CASE-1",
+            "case_name": "Test Case",
+            "custom_attributes": {
+                "SLA_Priority_Tracker": {
+                    "Priority": {
+                        "value": "High"
+                    },
+                    "Criticality": {
+                        "value": "Tier-1"
+                    }
+                }
+            }
+        }
+        normalized = normalize_ticket(source_ticket, {})
+        assert normalized["priority"] == "High"
+        assert normalized["criticality"] == "Tier-1"
+
+    def test_custom_attributes_missing_defaults_to_na(self):
+        from services.field_mapping_service import normalize_ticket
+        source_ticket = {
+            "case_id": "CASE-2",
+            "case_name": "Test Case",
+            # custom_attributes is entirely missing
+        }
+        normalized = normalize_ticket(source_ticket, {})
+        assert normalized["priority"] == "N/A"
+        assert normalized["criticality"] == "N/A"
+
+    def test_custom_attributes_null_defaults_to_na(self):
+        from services.field_mapping_service import normalize_ticket
+        source_ticket = {
+            "case_id": "CASE-3",
+            "case_name": "Test Case",
+            "custom_attributes": {
+                "SLA_Priority_Tracker": {
+                    "Priority": None,
+                    "Criticality": {"value": None}
+                }
+            }
+        }
+        normalized = normalize_ticket(source_ticket, {})
+        assert normalized["priority"] == "N/A"
+        assert normalized["criticality"] == "N/A"
+
+    def test_custom_attributes_invalid_type_defaults_to_na(self):
+        from services.field_mapping_service import normalize_ticket
+        source_ticket = {
+            "case_id": "CASE-4",
+            "case_name": "Test Case",
+            "custom_attributes": "invalid-string-here"
+        }
+        normalized = normalize_ticket(source_ticket, {})
+        assert normalized["priority"] == "N/A"
+        assert normalized["criticality"] == "N/A"
+

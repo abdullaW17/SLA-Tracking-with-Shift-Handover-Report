@@ -75,8 +75,7 @@ def find_matching_sla_rule(ticket):
     the ``priority`` field on each rule.
 
     This is the generic matching logic:
-        ticket_value = getattr(ticket, rule.field_name)
-        if ticket_value == rule.field_value: apply this rule
+        A rule matches if ALL of its conditions match.
     """
     query = SLARule.query.filter_by(is_active=True)
 
@@ -90,18 +89,28 @@ def find_matching_sla_rule(ticket):
     ).all()
 
     for rule in active_rules:
-        if rule.field_name not in MATCHABLE_TICKET_FIELDS:
-            # Rule references a field the Ticket model doesn't have - skip
-            # safely rather than raising, so one bad rule doesn't break sync.
+        # A rule must have at least one condition to match
+        if not rule.conditions:
             continue
 
-        ticket_value = getattr(ticket, rule.field_name, None)
-        if ticket_value is None:
-            continue
+        match = True
+        for cond in rule.conditions:
+            if cond.field_name not in MATCHABLE_TICKET_FIELDS:
+                match = False
+                break
 
-        # Case-insensitive, whitespace-tolerant comparison so "Critical" ==
-        # "critical" == " Critical " all match without extra rule rows.
-        if str(ticket_value).strip().lower() == str(rule.field_value).strip().lower():
+            ticket_value = getattr(ticket, cond.field_name, None)
+            if ticket_value is None:
+                match = False
+                break
+
+            # Case-insensitive, whitespace-tolerant comparison so "Critical" ==
+            # "critical" == " Critical " all match without extra rule rows.
+            if str(ticket_value).strip().lower() != str(cond.field_value).strip().lower():
+                match = False
+                break
+
+        if match:
             return rule
 
     return None

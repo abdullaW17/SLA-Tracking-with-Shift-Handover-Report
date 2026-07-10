@@ -72,7 +72,24 @@ def create_app(config_name=None):
 
     @app.context_processor
     def inject_helpers():
-        return dict(sla_badge_color=SLA_BADGE_COLOR)
+        from services.iris_api_service import fetch_classifications
+        
+        def severity_display(val):
+            if not val:
+                return "-"
+            try:
+                classifications = fetch_classifications()
+                for c in classifications:
+                    if c.get("name") == val:
+                        return c.get("name_expanded") or val
+            except Exception:
+                pass
+            return val
+
+        return dict(
+            sla_badge_color=SLA_BADGE_COLOR,
+            severity_display=severity_display
+        )
 
     # --- Logging ---
     logging.basicConfig(level=logging.INFO)

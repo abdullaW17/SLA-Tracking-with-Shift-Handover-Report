@@ -16,7 +16,7 @@
             <table class="table table-sm">
                 <tr><th>Source System</th><td>{{ ticket.source_system }}</td></tr>
                 <tr><th>Status</th><td>{{ ticket.status or '-' }}</td></tr>
-                <tr><th>Severity</th><td>{{ ticket.severity or '-' }}</td></tr>
+                <tr><th>Severity</th><td>{{ severity_display(ticket.severity) }}</td></tr>
                 <tr><th>Priority</th><td>{{ ticket.priority or '-' }}</td></tr>
                 <tr><th>Criticality</th><td>{{ ticket.criticality or '-' }}</td></tr>
                 <tr><th>Assigned To</th><td>{{ ticket.assigned_to or '-' }}</td></tr>

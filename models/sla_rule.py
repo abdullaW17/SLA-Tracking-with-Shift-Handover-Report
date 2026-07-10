@@ -32,6 +32,23 @@ from datetime import datetime, timezone
 from extensions import db
 
 
+class SLARuleCondition(db.Model):
+    __tablename__ = "sla_rule_conditions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    sla_rule_id = db.Column(
+        db.Integer,
+        db.ForeignKey("sla_rules.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    field_name = db.Column(db.String(100), nullable=False)
+    field_value = db.Column(db.String(150), nullable=False)
+
+    def __repr__(self):
+        return f"<SLARuleCondition {self.field_name}={self.field_value}>"
+
+
 class SLARule(db.Model):
     __tablename__ = "sla_rules"
 
@@ -44,15 +61,23 @@ class SLARule(db.Model):
 
     rule_name = db.Column(db.String(150), nullable=False)
 
+    description = db.Column(db.Text, nullable=True)
+    escalation_email = db.Column(db.String(255), nullable=True)
+
+    created_by = db.Column(db.String(100), nullable=True)
+    updated_by = db.Column(db.String(100), nullable=True)
+
     # --- Explicit evaluation order (Gap #2) ---
     # Lower number = evaluated first. First match wins.
     priority = db.Column(db.Integer, nullable=False, default=0)
 
-    # The generic matching pair: ticket.<field_name> == field_value
-    # field_name is typically "severity", "priority", "criticality", "impact",
-    # "urgency" ... but the system does NOT restrict this to a fixed list.
-    field_name = db.Column(db.String(100), nullable=False, index=True)
-    field_value = db.Column(db.String(150), nullable=False, index=True)
+    # Conditions relationship
+    conditions = db.relationship(
+        "SLARuleCondition",
+        backref="sla_rule",
+        cascade="all, delete-orphan",
+        lazy="joined"
+    )
 
     response_sla_minutes = db.Column(db.Integer, nullable=True)  # optional
     resolution_sla_minutes = db.Column(db.Integer, nullable=False)
@@ -89,13 +114,21 @@ class SLARule(db.Model):
 
     tickets = db.relationship("Ticket", backref="sla_rule", lazy="dynamic")
 
-    __table_args__ = (
-        # Prevent duplicate rules for the same client + field combination
-        db.UniqueConstraint(
-            "client_id", "field_name", "field_value",
-            name="uq_client_field_value",
-        ),
-    )
+    def __init__(self, **kwargs):
+        # Support old-style initialization for backward compatibility
+        field_name = kwargs.pop("field_name", None)
+        field_value = kwargs.pop("field_value", None)
+        super().__init__(**kwargs)
+        if field_name and field_value:
+            self.conditions.append(SLARuleCondition(field_name=field_name, field_value=field_value))
+
+    @property
+    def field_name(self):
+        return self.conditions[0].field_name if self.conditions else None
+
+    @property
+    def field_value(self):
+        return self.conditions[0].field_value if self.conditions else None
 
     def stop_status_list(self):
         if not self.stop_status:

@@ -118,15 +118,42 @@ def normalize_ticket(source_ticket, field_mappings):
     result = {field: None for field in LOCAL_TICKET_FIELDS}
 
     for local_field in LOCAL_TICKET_FIELDS:
-        mapping = field_mappings.get(local_field)
-        if not mapping:
-            continue
-
-        # Prefer a nested source_path if provided, else a flat source_field
-        if mapping.source_path:
-            raw_value = _get_nested(source_ticket, mapping.source_path)
+        if local_field == "priority":
+            custom_attrs = source_ticket.get("custom_attributes") if isinstance(source_ticket, dict) else None
+            if not isinstance(custom_attrs, dict):
+                custom_attrs = {}
+            tracker = custom_attrs.get("SLA_Priority_Tracker")
+            if not isinstance(tracker, dict):
+                tracker = {}
+            prio_obj = tracker.get("Priority")
+            if not isinstance(prio_obj, dict):
+                prio_obj = {}
+            raw_value = prio_obj.get("value")
+            if raw_value is None:
+                raw_value = "N/A"
+        elif local_field == "criticality":
+            custom_attrs = source_ticket.get("custom_attributes") if isinstance(source_ticket, dict) else None
+            if not isinstance(custom_attrs, dict):
+                custom_attrs = {}
+            tracker = custom_attrs.get("SLA_Priority_Tracker")
+            if not isinstance(tracker, dict):
+                tracker = {}
+            crit_obj = tracker.get("Criticality")
+            if not isinstance(crit_obj, dict):
+                crit_obj = {}
+            raw_value = crit_obj.get("value")
+            if raw_value is None:
+                raw_value = "N/A"
         else:
-            raw_value = source_ticket.get(mapping.source_field)
+            mapping = field_mappings.get(local_field)
+            if not mapping:
+                continue
+
+            # Prefer a nested source_path if provided, else a flat source_field
+            if mapping.source_path:
+                raw_value = _get_nested(source_ticket, mapping.source_path)
+            else:
+                raw_value = source_ticket.get(mapping.source_field)
 
         if local_field in ("created_at", "closed_at"):
             raw_value = _parse_datetime(raw_value)

@@ -93,7 +93,7 @@
                     <td>{{ t.external_id }}</td>
                     <td>{{ t.title }}</td>
                     <td>{{ t.status or '-' }}</td>
-                    <td>{{ t.severity or '-' }}</td>
+                    <td>{{ severity_display(t.severity) }}</td>
                     <td>{{ t.priority or '-' }}</td>
                     <td>{{ t.criticality or '-' }}</td>
                     <td>{{ t.assigned_to or '-' }}</td>

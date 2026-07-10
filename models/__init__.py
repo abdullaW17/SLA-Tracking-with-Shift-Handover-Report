@@ -8,7 +8,7 @@ discovers them when `db` is initialized in app.py.
 from .client import Client
 from .user import User
 from .ticket import Ticket
-from .sla_rule import SLARule
+from .sla_rule import SLARule, SLARuleCondition
 from .field_mapping import FieldMapping
 from .report import Report
 from .setting import Setting
@@ -19,6 +19,7 @@ __all__ = [
     "User",
     "Ticket",
     "SLARule",
+    "SLARuleCondition",
     "FieldMapping",
     "Report",
     "Setting",

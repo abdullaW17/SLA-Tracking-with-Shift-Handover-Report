@@ -16,7 +16,7 @@
         <option value="">— Select Client —</option>
         {% for c in clients %}
         <option value="{{ c.id }}"
-          {% if rule and ((rule.client_id is defined and rule.client_id == c.id) or (rule.client_id is not defined and rule.get('client_id') == c.id)) %}selected{% endif %}>
+          {% if rule and rule.client_id == c.id %}selected{% endif %}>
           {{ c.name }}
         </option>
         {% endfor %}
@@ -37,18 +37,68 @@
       <div class="form-text">Lower number = evaluated first. First matching rule wins.</div>
     </div>
 
-    <div class="row">
-      <div class="col-md-6 mb-3">
-        <label for="field_name" class="form-label">Field Name *</label>
-        <input type="text" name="field_name" id="field_name" class="form-control"
-               value="{{ rule.field_name if rule else '' }}" required
-               placeholder="e.g. severity, priority, criticality">
+    <div class="mb-3">
+      <label for="description" class="form-label">Description / Notes</label>
+      <textarea name="description" id="description" class="form-control" rows="2" placeholder="Describe the purpose of this SLA rule...">{{ rule.description if rule and rule.description else '' }}</textarea>
+    </div>
+
+    <div class="mb-3">
+      <label for="escalation_email" class="form-label">Escalation / Notification Contact (Email)</label>
+      <input type="email" name="escalation_email" id="escalation_email" class="form-control"
+             value="{{ rule.escalation_email if rule and rule.escalation_email else '' }}"
+             placeholder="e.g. ops-team@example.com">
+      <div class="form-text">Optional. The email address notified when SLA warning thresholds or breaches occur.</div>
+    </div>
+
+    <div class="mb-4 card p-3 bg-light border">
+      <h5 class="card-title text-primary mb-3">Matching Conditions</h5>
+      <p class="text-muted small mb-3">
+        This rule will apply if <strong>all</strong> of the matching conditions below are satisfied (AND logic).
+      </p>
+
+      <div id="conditions-container">
+        {% if rule and rule.conditions %}
+          {% for cond in rule.conditions %}
+          <div class="row condition-row align-items-end mb-3">
+            <div class="col-md-5">
+              <label class="form-label small text-muted">Field Name *</label>
+              <input type="text" name="cond_field_name[]" class="form-control" list="field_name_options" value="{{ cond.field_name }}" required>
+            </div>
+            <div class="col-md-5">
+              <label class="form-label small text-muted">Field Value *</label>
+              <input type="text" name="cond_field_value[]" class="form-control" list="field_value_options" value="{{ cond.field_value }}" required>
+            </div>
+            <div class="col-md-2">
+              <button type="button" class="btn btn-outline-danger w-100 remove-condition-btn">
+                <i class="bi bi-trash"></i> Remove
+              </button>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <!-- Default single empty condition row -->
+          <div class="row condition-row align-items-end mb-3">
+            <div class="col-md-5">
+              <label class="form-label small text-muted">Field Name *</label>
+              <input type="text" name="cond_field_name[]" class="form-control" list="field_name_options" required placeholder="e.g. severity, priority, criticality">
+            </div>
+            <div class="col-md-5">
+              <label class="form-label small text-muted">Field Value *</label>
+              <input type="text" name="cond_field_value[]" class="form-control" list="field_value_options" required placeholder="e.g. Critical, Low">
+            </div>
+            <div class="col-md-2">
+              <button type="button" class="btn btn-outline-danger w-100 remove-condition-btn">
+                <i class="bi bi-trash"></i> Remove
+              </button>
+            </div>
+          </div>
+        {% endif %}
       </div>
-      <div class="col-md-6 mb-3">
-        <label for="field_value" class="form-label">Field Value *</label>
-        <input type="text" name="field_value" id="field_value" class="form-control"
-               value="{{ rule.field_value if rule else '' }}" required
-               placeholder="e.g. Critical, P1, Sev1">
+
+      <div>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="add-condition-btn">
+          <i class="bi bi-plus-circle"></i> Add Another Condition
+        </button>
       </div>
     </div>
 
@@ -76,7 +126,7 @@
     <!-- Business Hours (Gap #3) -->
     <div class="mb-3 form-check">
       <input type="checkbox" name="business_hours_only" id="business_hours_only" class="form-check-input"
-             {% if rule and ((rule.business_hours_only is defined and rule.business_hours_only) or (rule.business_hours_only is not defined and rule.get('business_hours_only'))) %}checked{% endif %}>
+             {% if rule and rule.business_hours_only %}checked{% endif %}>
       <label for="business_hours_only" class="form-check-label">Business Hours Only</label>
       <div class="form-text">When checked, SLA deadlines only count Mon–Fri 09:00–17:00 in the client's timezone.</div>
     </div>
@@ -107,7 +157,7 @@
 
     <div class="mb-3 form-check">
       <input type="checkbox" name="is_active" id="is_active" class="form-check-input"
-             {% if not rule or (rule and ((rule.is_active is defined and rule.is_active) or (rule.is_active is not defined and rule.get('is_active', True)))) %}checked{% endif %}>
+             {% if not rule or (rule and rule.is_active) %}checked{% endif %}>
       <label for="is_active" class="form-check-label">Active</label>
     </div>
 
@@ -119,4 +169,63 @@
     </div>
   </form>
 </div>
+
+<!-- Datalist inputs shared by dynamic condition rows -->
+<datalist id="field_name_options">
+  <option value="severity">severity</option>
+  <option value="priority">priority</option>
+  <option value="criticality">criticality</option>
+  <option value="status">status</option>
+</datalist>
+
+<datalist id="field_value_options">
+  <!-- Dynamic IRIS Case Classifications -->
+  {% if classifications %}
+    {% for c in classifications %}
+      <option value="{{ c.name }}">{{ c.name_expanded or c.name }}</option>
+    {% endfor %}
+  {% endif %}
+</datalist>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const container = document.getElementById("conditions-container");
+    const addBtn = document.getElementById("add-condition-btn");
+
+    // Add condition row
+    addBtn.addEventListener("click", function() {
+        const row = document.createElement("div");
+        row.className = "row condition-row align-items-end mb-3";
+        row.innerHTML = `
+            <div class="col-md-5">
+              <label class="form-label small text-muted">Field Name *</label>
+              <input type="text" name="cond_field_name[]" class="form-control" list="field_name_options" required placeholder="e.g. severity, priority, criticality">
+            </div>
+            <div class="col-md-5">
+              <label class="form-label small text-muted">Field Value *</label>
+              <input type="text" name="cond_field_value[]" class="form-control" list="field_value_options" required placeholder="e.g. Critical, Low">
+            </div>
+            <div class="col-md-2">
+              <button type="button" class="btn btn-outline-danger w-100 remove-condition-btn">
+                <i class="bi bi-trash"></i> Remove
+              </button>
+            </div>
+        `;
+        container.appendChild(row);
+    });
+
+    // Remove condition row (event delegation)
+    container.addEventListener("click", function(e) {
+        if (e.target.classList.contains("remove-condition-btn") || e.target.closest(".remove-condition-btn")) {
+            const rows = container.querySelectorAll(".condition-row");
+            if (rows.length > 1) {
+                const row = e.target.closest(".condition-row");
+                row.remove();
+            } else {
+                alert("At least one condition row is required.");
+            }
+        }
+    });
+});
+</script>
 {% endblock %}
