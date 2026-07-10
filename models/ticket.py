@@ -83,6 +83,10 @@ class Ticket(db.Model):
     # Accumulated total pause time across all pause/unpause cycles.
     total_paused_minutes = db.Column(db.Integer, nullable=False, default=0)
 
+    # --- Notification flags ---
+    near_breach_notified = db.Column(db.Boolean, default=False, nullable=False)
+    breach_notified = db.Column(db.Boolean, default=False, nullable=False)
+
     # --- Raw payload retained for reprocessing if mappings change later ---
     raw_payload_json = db.Column(db.Text, nullable=True)
 

@@ -54,29 +54,96 @@ def _admin_and_manager_emails():
 
 
 def send_breach_alerts_if_needed(app):
-    """Sends one consolidated email listing tickets that are currently
-    Breached or Near Breach. Intended to be called after each sync."""
-    breached = Ticket.query.filter_by(sla_status=SLA_BREACHED).all()
-    near_breach = Ticket.query.filter_by(sla_status=SLA_NEAR_BREACH).all()
-
-    if not breached and not near_breach:
+    """Sends email alerts for tickets that have entered Breached or Near Breach status.
+    
+    - If a rule-specific escalation email is configured, sends an individual email to that contact.
+    - Otherwise (or also as a fallback), groups them and sends a consolidated summary to Admins/Managers.
+    - Sets database-backed flags to ensure each ticket/stage alert is sent exactly once.
+    """
+    from extensions import db
+    
+    # Query all open tickets in warning/breach status
+    open_alerts = Ticket.query.filter(
+        Ticket.sla_status.in_([SLA_BREACHED, SLA_NEAR_BREACH])
+    ).all()
+    
+    if not open_alerts:
         return False
 
-    rows = "".join(
-        f"<tr><td>{t.external_id}</td><td>{t.title}</td><td>{t.sla_status}</td>"
-        f"<td>{t.assigned_to or ''}</td></tr>"
-        for t in (breached + near_breach)
-    )
-    body = f"""
-    <h3>SLA Alert</h3>
-    <p>{len(breached)} breached, {len(near_breach)} near breach.</p>
-    <table border="1" cellpadding="4" cellspacing="0">
-      <tr><th>External ID</th><th>Title</th><th>Status</th><th>Assigned To</th></tr>
-      {rows}
-    </table>
-    """
-    return _send_email(app, "SLA Alert: Breached / Near Breach Tickets",
-                        body, _admin_and_manager_emails())
+    global_notified_tickets = []
+    any_email_sent = False
+
+    for t in open_alerts:
+        should_notify = False
+        alert_type = t.sla_status # SLA_BREACHED or SLA_NEAR_BREACH
+        
+        if alert_type == SLA_BREACHED and not t.breach_notified:
+            should_notify = True
+        elif alert_type == SLA_NEAR_BREACH and not t.near_breach_notified:
+            should_notify = True
+            
+        if not should_notify:
+            continue
+
+        # Determine if there is a specific escalation email
+        escalation_email = None
+        if t.sla_rule and t.sla_rule.escalation_email:
+            escalation_email = t.sla_rule.escalation_email.strip()
+            
+        if escalation_email:
+            # Send individual email directly to the escalation contact
+            subject = f"SLA Escalation Alert: Ticket {t.external_id} is {alert_type}"
+            body = f"""
+            <h3>SLA Escalation Alert</h3>
+            <p>The following ticket has reached <strong>{alert_type}</strong> status under SLA Rule: '{t.sla_rule.rule_name}'.</p>
+            <table border="1" cellpadding="4" cellspacing="0">
+              <tr><td><strong>External ID</strong></td><td>{t.external_id}</td></tr>
+              <tr><td><strong>Title</strong></td><td>{t.title}</td></tr>
+              <tr><td><strong>SLA Status</strong></td><td><strong style="color:red;">{alert_type}</strong></td></tr>
+              <tr><td><strong>Assigned To</strong></td><td>{t.assigned_to or 'Unassigned'}</td></tr>
+              <tr><td><strong>Resolution Deadline</strong></td><td>{t.resolution_deadline or 'N/A'}</td></tr>
+            </table>
+            """
+            sent = _send_email(app, subject, body, [escalation_email])
+            if sent:
+                any_email_sent = True
+                if alert_type == SLA_BREACHED:
+                    t.breach_notified = True
+                else:
+                    t.near_breach_notified = True
+        else:
+            # Add to global notification list to notify admins/managers in a consolidated email
+            global_notified_tickets.append(t)
+
+    # Send consolidated email to Admins/Managers for any tickets without rule-specific escalation
+    if global_notified_tickets:
+        rows = "".join(
+            f"<tr><td>{t.external_id}</td><td>{t.title}</td><td>{t.sla_status}</td>"
+            f"<td>{t.assigned_to or ''}</td></tr>"
+            for t in global_notified_tickets
+        )
+        body = f"""
+        <h3>SLA Alert: Consolidated Summary</h3>
+        <p>The following new SLA alerts occurred (no specific escalation email was configured):</p>
+        <table border="1" cellpadding="4" cellspacing="0">
+          <tr><th>External ID</th><th>Title</th><th>Status</th><th>Assigned To</th></tr>
+          {rows}
+        </table>
+        """
+        recipients = _admin_and_manager_emails()
+        sent = _send_email(app, "SLA Alert: Breached / Near Breach Tickets (Consolidated)", body, recipients)
+        if sent:
+            any_email_sent = True
+            for t in global_notified_tickets:
+                if t.sla_status == SLA_BREACHED:
+                    t.breach_notified = True
+                else:
+                    t.near_breach_notified = True
+
+    if any_email_sent:
+        db.session.commit()
+
+    return any_email_sent
 
 
 def send_daily_summary_email(app):

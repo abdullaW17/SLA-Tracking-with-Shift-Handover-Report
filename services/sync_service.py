@@ -79,6 +79,9 @@ def _apply_normalized_to_ticket(ticket, normalized):
         ticket.sla_status = None
         # Optionally reset pause tracking since the ticket is "new" again
         ticket.paused_at = None
+        # Reset notification flags for the reopened ticket
+        ticket.near_breach_notified = False
+        ticket.breach_notified = False
 
 
 def _soft_delete_missing_tickets(client_id, source_system, seen_external_ids):
