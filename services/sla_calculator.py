@@ -104,9 +104,13 @@ def find_matching_sla_rule(ticket):
                 match = False
                 break
 
-            # Case-insensitive, whitespace-tolerant comparison so "Critical" ==
-            # "critical" == " Critical " all match without extra rule rows.
-            if str(ticket_value).strip().lower() != str(cond.field_value).strip().lower():
+            # Case-insensitive, whitespace-tolerant comparison.
+            # Supports both exact match ("Critical" == "critical") and
+            # contains match ("spam" matches "abusive-content:spam") to
+            # handle IRIS classification strings like "category:subcategory".
+            tv = str(ticket_value).strip().lower()
+            cv = str(cond.field_value).strip().lower()
+            if tv != cv and cv not in tv:
                 match = False
                 break
 

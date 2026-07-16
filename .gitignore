@@ -3,6 +3,7 @@ venv/
 __pycache__/
 *.pyc
 instance/*.db
+!instance/sla_tracker.db
 generated_reports/*.pdf
 generated_reports/*.xlsx
 .DS_Store

@@ -77,7 +77,7 @@ def rule_create():
                 conditions_data.append((name_clean, value_clean))
 
         # Re-attach conditions as dummy objects for postback if page needs to render errors
-        fields["conditions"] = [SLARuleCondition(field_name=fn, field_value=fv) for fn, v in conditions_data]
+        fields["conditions"] = [SLARuleCondition(field_name=fn, field_value=fv) for fn, fv in conditions_data]
 
         # Validations
         if not fields["rule_name"]:

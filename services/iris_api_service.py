@@ -294,6 +294,43 @@ def fetch_all_alerts(max_pages=100, per_page=50):
     return all_alerts
 
 
+def fetch_customers():
+    """Fetch all customers from DFIR-IRIS.
+    Returns a list of raw customer dicts."""
+    base_url, api_key, verify_ssl, timeout = _get_config()
+
+    resp = _request_with_retry(
+        "GET",
+        f"{base_url}/manage/customers/list",
+        headers=_headers(api_key),
+        verify=verify_ssl,
+        timeout=timeout,
+    )
+    if resp.status_code != 200:
+        raise IrisApiError(f"fetch_customers failed: HTTP {resp.status_code} - {resp.text[:300]}")
+
+    payload = resp.json()
+    data = payload.get("data", payload if isinstance(payload, list) else [])
+    return data
+
+
+def fetch_customer_by_id(customer_id):
+    """Fetch a single customer's details by ID from DFIR-IRIS."""
+    base_url, api_key, verify_ssl, timeout = _get_config()
+
+    resp = _request_with_retry(
+        "GET",
+        f"{base_url}/manage/customers/{customer_id}",
+        headers=_headers(api_key),
+        verify=verify_ssl,
+        timeout=timeout,
+    )
+    if resp.status_code != 200:
+        raise IrisApiError(f"fetch_customer_by_id({customer_id}) failed: HTTP {resp.status_code}")
+
+    return resp.json().get("data", {})
+
+
 @lru_cache(maxsize=1)
 def fetch_classifications():
     """Fetch the list of case classifications from DFIR-IRIS."""

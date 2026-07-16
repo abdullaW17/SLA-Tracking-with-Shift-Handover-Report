@@ -166,16 +166,16 @@ def normalize_ticket(source_ticket, field_mappings):
 
 
 DEFAULT_IRIS_FIELD_MAPPINGS = [
-    # (local_field, source_field)
-    ("external_id", "case_id"),
-    ("title", "case_name"),
-    ("severity", "severity"),
-    ("priority", "priority"),
-    ("criticality", "criticality"),
-    ("status", "status_name"),
-    ("assigned_to", "owner"),
-    ("created_at", "created_at"),
-    ("closed_at", "closed_at"),
+    # (local_field, source_field, source_path)
+    # source_path is used for nested JSON fields; set to None for flat fields.
+    # These are based on actual DFIR-IRIS API response inspection.
+    ("external_id", "case_id", None),
+    ("title", "case_name", None),
+    ("severity", "classification", None),        # classification name string (may be null)
+    ("status", "state_name", None),              # "Open", "Closed", etc. (not status_name which returns "Unknown")
+    ("assigned_to", "owner", None),              # flat string like "administrator" (not nested)
+    ("created_at", "initial_date", None),        # full ISO timestamp "2026-07-03T07:27:13.787739"
+    ("closed_at", "close_date", None),           # "2026-07-10" date string
 ]
 
 
@@ -190,7 +190,7 @@ def seed_default_iris_mappings():
         for m in FieldMapping.query.all()
     }
     created = 0
-    for local_field, source_field in DEFAULT_IRIS_FIELD_MAPPINGS:
+    for local_field, source_field, source_path in DEFAULT_IRIS_FIELD_MAPPINGS:
         key = ("dfir_iris", None, local_field)
         if key in existing:
             continue
@@ -199,6 +199,7 @@ def seed_default_iris_mappings():
             client_id=None,  # global default
             local_field=local_field,
             source_field=source_field,
+            source_path=source_path,
             is_active=True,
         ))
         created += 1
