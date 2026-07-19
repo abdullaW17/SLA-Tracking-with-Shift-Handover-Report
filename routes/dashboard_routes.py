@@ -165,6 +165,47 @@ def _build_dashboard_metrics(client_id=None, month=None):
     )
     ytd_compliance = round((ytd_within / ytd_total) * 100, 1) if ytd_total else 0.0
 
+    # --- Regional stats (Pakistan map) ---
+    pakistan_cities = {
+        "Karachi": {"lat": 24.8607, "lng": 67.0011},
+        "Lahore": {"lat": 31.5204, "lng": 74.3587},
+        "Islamabad": {"lat": 33.6844, "lng": 73.0479},
+        "Rawalpindi": {"lat": 33.5651, "lng": 73.0169},
+        "Peshawar": {"lat": 34.0151, "lng": 71.5249},
+        "Quetta": {"lat": 30.1798, "lng": 66.9750},
+        "Faisalabad": {"lat": 31.4504, "lng": 73.1350},
+        "Multan": {"lat": 30.1575, "lng": 71.5249},
+    }
+
+    region_data = defaultdict(lambda: {"total": 0, "within": 0, "breached": 0})
+    for t in tickets:
+        city = "Islamabad"
+        if t.client_id:
+            c = Client.query.get(t.client_id)
+            if c and c.city:
+                city = c.city
+        region_data[city]["total"] += 1
+        if t.sla_status in (SLA_BREACHED, SLA_CLOSED_AFTER_BREACH):
+            region_data[city]["breached"] += 1
+        elif t.sla_status in (SLA_WITHIN, SLA_CLOSED_WITHIN):
+            region_data[city]["within"] += 1
+
+    region_stats = {}
+    for city_name, stats in region_data.items():
+        total_c = stats["total"]
+        within_c = stats["within"]
+        breached_c = stats["breached"]
+        comp = round((within_c / total_c) * 100, 1) if total_c else 0.0
+        coords = pakistan_cities.get(city_name, pakistan_cities["Islamabad"])
+        region_stats[city_name] = {
+            "total": total_c,
+            "within": within_c,
+            "breached": breached_c,
+            "compliance": comp,
+            "lat": coords["lat"],
+            "lng": coords["lng"],
+        }
+
     return {
         "total_tickets": total,
         "open_tickets": open_tickets,
@@ -196,7 +237,9 @@ def _build_dashboard_metrics(client_id=None, month=None):
         },
         "client_counts": dict(client_counts),
         "available_months": available_months,
+        "region_stats": region_stats,
     }
+
 
 
 @dashboard_bp.route("/dashboard")

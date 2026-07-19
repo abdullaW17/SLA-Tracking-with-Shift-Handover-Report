@@ -18,6 +18,7 @@
           <tr>
             <th>ID</th>
             <th>Name</th>
+            <th>City / Region</th>
             <th>IRIS Customer ID</th>
             <th>Timezone</th>
             <th>Status</th>
@@ -29,6 +30,7 @@
           <tr>
             <td>{{ client.id }}</td>
             <td><strong>{{ client.name }}</strong></td>
+            <td><span class="badge bg-info text-dark"><i class="bi bi-geo-alt-fill me-1"></i>{{ client.city or 'Islamabad' }}</span></td>
             <td><code>{{ client.iris_customer_id or '—' }}</code></td>
             <td>{{ client.timezone }}</td>
             <td>
@@ -67,6 +69,15 @@
                       <input type="text" name="name" class="form-control" value="{{ client.name }}" required>
                     </div>
                     <div class="mb-3">
+                      <label class="form-label">City / Region (Pakistan)</label>
+                      <select name="city" class="form-select">
+                        {% for cname in ['Karachi', 'Lahore', 'Islamabad', 'Rawalpindi', 'Peshawar', 'Quetta', 'Faisalabad', 'Multan'] %}
+                        <option value="{{ cname }}" {% if (client.city or 'Islamabad') == cname %}selected{% endif %}>{{ cname }}</option>
+                        {% endfor %}
+                      </select>
+                      <div class="form-text">Sets the geographic location for the dashboard map visualization.</div>
+                    </div>
+                    <div class="mb-3">
                       <label class="form-label">IRIS Customer ID</label>
                       <input type="text" name="iris_customer_id" class="form-control" value="{{ client.iris_customer_id or '' }}">
                       <div class="form-text">Maps to <code>case_customer_id</code> in IRIS for automatic ticket routing.</div>
@@ -74,7 +85,7 @@
                     <div class="mb-3">
                       <label class="form-label">Timezone</label>
                       <input type="text" name="timezone" class="form-control" value="{{ client.timezone }}">
-                      <div class="form-text">IANA timezone (e.g. America/New_York, Europe/London, UTC).</div>
+                      <div class="form-text">IANA timezone (e.g. Asia/Karachi, Europe/London, UTC).</div>
                     </div>
                   </div>
                   <div class="modal-footer">
@@ -107,14 +118,23 @@
               <input type="text" name="name" class="form-control" required>
             </div>
             <div class="mb-3">
+              <label class="form-label">City / Region (Pakistan)</label>
+              <select name="city" class="form-select">
+                {% for cname in ['Islamabad', 'Karachi', 'Lahore', 'Rawalpindi', 'Peshawar', 'Quetta', 'Faisalabad', 'Multan'] %}
+                <option value="{{ cname }}">{{ cname }}</option>
+                {% endfor %}
+              </select>
+              <div class="form-text">Sets the geographic location for the dashboard map visualization.</div>
+            </div>
+            <div class="mb-3">
               <label class="form-label">IRIS Customer ID</label>
               <input type="text" name="iris_customer_id" class="form-control">
               <div class="form-text">Maps to <code>case_customer_id</code> in IRIS for automatic ticket routing.</div>
             </div>
             <div class="mb-3">
               <label class="form-label">Timezone</label>
-              <input type="text" name="timezone" class="form-control" value="UTC">
-              <div class="form-text">IANA timezone (e.g. America/New_York, Europe/London, UTC).</div>
+              <input type="text" name="timezone" class="form-control" value="Asia/Karachi">
+              <div class="form-text">IANA timezone (e.g. Asia/Karachi, Europe/London, UTC).</div>
             </div>
           </div>
           <div class="modal-footer">

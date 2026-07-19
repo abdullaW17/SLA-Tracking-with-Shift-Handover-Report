@@ -105,7 +105,8 @@ def client_list():
 def client_create():
     name = request.form.get("name", "").strip()
     iris_customer_id = request.form.get("iris_customer_id", "").strip() or None
-    client_timezone = request.form.get("timezone", "UTC").strip()
+    client_timezone = request.form.get("timezone", "Asia/Karachi").strip()
+    city = request.form.get("city", "Islamabad").strip()
 
     if not name:
         flash("Client name is required.", "danger")
@@ -119,6 +120,7 @@ def client_create():
         name=name,
         iris_customer_id=iris_customer_id,
         timezone=client_timezone,
+        city=city,
     )
     db.session.add(client)
     db.session.commit()
@@ -133,10 +135,12 @@ def client_edit(client_id):
     client = Client.query.get_or_404(client_id)
     client.name = request.form.get("name", client.name).strip()
     client.iris_customer_id = request.form.get("iris_customer_id", "").strip() or None
-    client.timezone = request.form.get("timezone", "UTC").strip()
+    client.timezone = request.form.get("timezone", "Asia/Karachi").strip()
+    client.city = request.form.get("city", client.city or "Islamabad").strip()
     db.session.commit()
     flash(f"Client '{client.name}' updated.", "success")
     return redirect(url_for("settings.client_list"))
+
 
 
 @settings_bp.route("/settings/clients/<int:client_id>/toggle", methods=["POST"])

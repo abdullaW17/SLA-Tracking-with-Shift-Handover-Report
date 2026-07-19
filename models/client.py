@@ -4,12 +4,12 @@ models/client.py
 Multi-tenant client/organization model.
 
 This is the anchor for multi-tenancy: SLA rules, field mappings, and tickets
-are all scoped to a client via ``client_id``.  IRIS tickets are mapped to
+are all scoped to a client via ``client_id``. IRIS tickets are mapped to
 clients by matching ``case_customer_id`` in the IRIS payload to
 ``Client.iris_customer_id``.
 
 Each client can also carry its own timezone (for business-hours SLA
-calculations) and a display name used throughout the UI.
+calculations), city/region (for regional SLA mapping), and display name.
 """
 
 from datetime import datetime, timezone
@@ -26,9 +26,12 @@ class Client(db.Model):
     # incoming tickets to the right client automatically.
     iris_customer_id = db.Column(db.String(100), nullable=True, index=True)
 
+    # Per-client city/region for Pakistan map visualizations
+    city = db.Column(db.String(100), nullable=True, default="Islamabad")
+
     # Per-client timezone for business-hours calculations (Gap #5).
-    # Stored as an IANA tz name (e.g. "America/New_York", "Europe/London").
-    timezone = db.Column(db.String(50), nullable=False, default="UTC")
+    # Stored as an IANA tz name (e.g. "Asia/Karachi", "America/New_York").
+    timezone = db.Column(db.String(50), nullable=False, default="Asia/Karachi")
 
     is_active = db.Column(db.Boolean, default=True, nullable=False)
 
@@ -45,4 +48,4 @@ class Client(db.Model):
     field_mappings = db.relationship("FieldMapping", backref="client", lazy="dynamic")
 
     def __repr__(self):
-        return f"<Client {self.name} (iris={self.iris_customer_id})>"
+        return f"<Client {self.name} (iris={self.iris_customer_id}, city={self.city})>"

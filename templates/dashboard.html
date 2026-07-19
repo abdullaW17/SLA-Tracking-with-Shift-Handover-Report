@@ -202,13 +202,18 @@
             </div>
         </div>
 
-        <!-- Regions Placeholder -->
+        <!-- Regions Map (Pakistan) -->
         <div class="card p-3">
-            <h6><i class="bi bi-geo-alt-fill me-1"></i> Regions</h6>
-            <div class="regions-placeholder">
-                <i class="bi bi-map"></i>
-                Regional data coming soon.<br>
-                <small>Map visualization will be added when data is provided.</small>
+            <h6><i class="bi bi-geo-alt-fill me-1"></i> Pakistan Customer SLA Map</h6>
+            <div id="pakistanMap" style="height: 230px; width: 100%; border-radius: 6px; border: 1px solid var(--border-light); background: #e8ecf1; z-index:1;"></div>
+            <div class="mt-2 d-flex flex-wrap gap-1" style="font-size: 0.76rem;">
+                {% for city_name, data in metrics.region_stats.items() %}
+                <div class="d-flex align-items-center gap-1 border rounded px-2 py-1 bg-light">
+                    <strong>{{ city_name }}:</strong>
+                    <span class="{% if data.compliance >= 90 %}text-success{% elif data.compliance >= 70 %}text-warning{% else %}text-danger{% endif %} fw-bold">{{ data.compliance }}%</span>
+                    <span class="text-muted">({{ data.total }})</span>
+                </div>
+                {% endfor %}
             </div>
         </div>
 
@@ -421,5 +426,47 @@ new Chart(document.getElementById('trendChart'), {
         }
     }
 });
+
+/* — Leaflet: Pakistan Customer SLA Map — */
+try {
+    const pmap = L.map('pakistanMap').setView([30.3753, 69.3451], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '&copy; OpenStreetMap'
+    }).addTo(pmap);
+
+    const regionStats = metrics.region_stats || {};
+    const markerGroup = L.featureGroup();
+
+    Object.keys(regionStats).forEach(city => {
+        const stat = regionStats[city];
+        if (stat.lat && stat.lng && stat.total > 0) {
+            const color = stat.compliance >= 90 ? '#27ae60' : (stat.compliance >= 70 ? '#f39c12' : '#e74c3c');
+            const marker = L.circleMarker([stat.lat, stat.lng], {
+                color: color,
+                fillColor: color,
+                fillOpacity: 0.8,
+                radius: Math.max(10, Math.min(20, stat.total * 2))
+            }).addTo(pmap);
+
+            marker.bindPopup(`
+                <div style="font-family: sans-serif; font-size: 12px; padding: 2px;">
+                    <strong style="color:#1a2980; font-size:13px;"><i class="bi bi-geo-alt-fill"></i> ${city}</strong><br>
+                    SLA Compliance: <b style="color:${color};">${stat.compliance}%</b><br>
+                    Total Cases: <b>${stat.total}</b><br>
+                    Breached: <b style="color:#e74c3c;">${stat.breached}</b>
+                </div>
+            `);
+
+            markerGroup.addLayer(marker);
+        }
+    });
+
+    if (markerGroup.getLayers().length > 0) {
+        pmap.fitBounds(markerGroup.getBounds().pad(0.35));
+    }
+} catch(e) {
+    console.error("Leaflet map initialization failed:", e);
+}
 </script>
 {% endblock %}

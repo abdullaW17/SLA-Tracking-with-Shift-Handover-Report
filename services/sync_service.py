@@ -27,6 +27,27 @@ from services.sla_calculator import apply_sla_to_ticket
 logger = logging.getLogger(__name__)
 
 
+def _extract_city_from_raw_customer(raw_customer):
+    """Deeply inspect raw IRIS customer dict for city/location in top-level fields or custom_attributes."""
+    for key in ["city", "customer_city", "location", "customer_location", "region", "customer_region"]:
+        if raw_customer.get(key):
+            return str(raw_customer[key]).strip()
+
+    custom_attrs = raw_customer.get("custom_attributes")
+    if isinstance(custom_attrs, dict):
+        for cat_name, cat_val in custom_attrs.items():
+            if isinstance(cat_val, dict):
+                for field_name, field_val in cat_val.items():
+                    if field_name.lower() in ["city", "location", "region", "city hub", "city_hub"]:
+                        if isinstance(field_val, dict):
+                            val = field_val.get("value")
+                            if val:
+                                return str(val).strip()
+                        elif isinstance(field_val, str):
+                            return field_val.strip()
+    return None
+
+
 def sync_customers_from_iris():
     """Fetch all customers from DFIR-IRIS and create/update local Client records.
 
@@ -43,7 +64,7 @@ def sync_customers_from_iris():
 
     created = 0
     updated = 0
-    default_tz = current_app.config.get("DEFAULT_TIMEZONE", "UTC")
+    default_tz = current_app.config.get("DEFAULT_TIMEZONE", "Asia/Karachi")
 
     for raw_customer in raw_customers:
         # DFIR-IRIS customer fields: customer_id, customer_name, customer_description, etc.
@@ -62,27 +83,31 @@ def sync_customers_from_iris():
         if client is None and customer_name:
             client = Client.query.filter_by(name=customer_name).first()
 
+        # Extract location/city from IRIS customer object
+        customer_city = _extract_city_from_raw_customer(raw_customer)
+
         if client is None:
             # Create new client from IRIS customer
             client = Client(
                 name=customer_name or f"IRIS Customer {customer_id}",
                 iris_customer_id=iris_id_str,
+                city=customer_city or "Islamabad",
                 timezone=default_tz,
                 is_active=True,
             )
             db.session.add(client)
             created += 1
             logger.info(
-                "Auto-created client '%s' (iris_customer_id=%s) from IRIS.",
-                client.name, iris_id_str,
+                "Auto-created client '%s' (iris_customer_id=%s, city=%s) from IRIS.",
+                client.name, iris_id_str, client.city,
             )
         else:
-            # Update existing client's iris_customer_id if it was missing
-            if iris_id_str and not client.iris_customer_id:
+            # Update existing client's iris_customer_id or city if provided
+            if iris_id_str and client.iris_customer_id != iris_id_str:
                 client.iris_customer_id = iris_id_str
                 updated += 1
-            elif iris_id_str and client.iris_customer_id != iris_id_str:
-                client.iris_customer_id = iris_id_str
+            if customer_city and client.city != customer_city:
+                client.city = customer_city
                 updated += 1
 
     db.session.commit()
