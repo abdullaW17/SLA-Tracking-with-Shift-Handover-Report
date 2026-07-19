@@ -4,12 +4,17 @@
 
 {% block content %}
 <div class="container mt-4">
-  <h2>{{ 'Edit' if rule and rule.id is defined else 'Create' }} SLA Rule</h2>
+  <div class="dashboard-header">
+    <h3>
+      <i class="bi bi-{% if rule and rule.id is defined %}pencil-square{% else %}plus-circle{% endif %} text-cyan"></i>
+      {{ 'Edit' if rule and rule.id is defined else 'Create' }} SLA Rule
+    </h3>
+  </div>
 
   <form method="POST">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-    <!-- Client selection (Gap #1) -->
+    <!-- Client selection -->
     <div class="mb-3">
       <label for="client_id" class="form-label">Client *</label>
       <select name="client_id" id="client_id" class="form-select" required>
@@ -29,7 +34,7 @@
              value="{{ rule.rule_name if rule else '' }}" required>
     </div>
 
-    <!-- Priority (Gap #2) -->
+    <!-- Priority -->
     <div class="mb-3">
       <label for="priority" class="form-label">Priority (evaluation order)</label>
       <input type="number" name="priority" id="priority" class="form-control"
@@ -50,8 +55,10 @@
       <div class="form-text">Optional. The email address notified when SLA warning thresholds or breaches occur.</div>
     </div>
 
-    <div class="mb-4 card p-3 bg-light border">
-      <h5 class="card-title text-primary mb-3">Matching Conditions</h5>
+    <div class="mb-4 card p-3" style="background: var(--bg-elevated); border-color: var(--border-color);">
+      <h5 class="text-cyan mb-3" style="font-family: var(--font-display);">
+        <i class="bi bi-filter-circle me-1"></i> Matching Conditions
+      </h5>
       <p class="text-muted small mb-3">
         This rule will apply if <strong>all</strong> of the matching conditions below are satisfied (AND logic).
       </p>
@@ -123,7 +130,7 @@
       <div class="form-text">SLA status becomes "Near Breach" when this percentage of the window is consumed.</div>
     </div>
 
-    <!-- Business Hours (Gap #3) -->
+    <!-- Business Hours -->
     <div class="mb-3 form-check">
       <input type="checkbox" name="business_hours_only" id="business_hours_only" class="form-check-input"
              {% if rule and rule.business_hours_only %}checked{% endif %}>
@@ -146,7 +153,7 @@
       <div class="form-text">Comma-separated statuses that stop the SLA clock.</div>
     </div>
 
-    <!-- Pause Status (Gap #4) -->
+    <!-- Pause Status -->
     <div class="mb-3">
       <label for="pause_status" class="form-label">Pause Status</label>
       <input type="text" name="pause_status" id="pause_status" class="form-control"
@@ -163,7 +170,7 @@
 
     <div class="d-flex gap-2">
       <button type="submit" class="btn btn-primary">
-        {{ 'Update' if rule and rule.id is defined else 'Create' }} Rule
+        <i class="bi bi-check-lg me-1"></i>{{ 'Update' if rule and rule.id is defined else 'Create' }} Rule
       </button>
       <a href="{{ url_for('sla_rules.rule_list') }}" class="btn btn-outline-secondary">Cancel</a>
     </div>

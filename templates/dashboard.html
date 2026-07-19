@@ -2,8 +2,10 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3 class="mb-0">Dashboard</h3>
+<div class="dashboard-header">
+    <h3>
+        <i class="bi bi-grid-1x2-fill text-cyan"></i> Security Operations Dashboard
+    </h3>
     <div class="d-flex gap-2 align-items-center">
         <form method="GET" class="d-flex gap-2 align-items-center">
             <select name="client_id" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
@@ -22,80 +24,84 @@
     </div>
 </div>
 
+<!-- ===== ROW 1: Core Metrics ===== -->
 <div class="row g-3 mb-4">
     <div class="col-md-3 col-6">
         <div class="card metric-card p-3">
-            <div class="metric-label">Total Tickets</div>
-            <div class="metric-value">{{ metrics.total_tickets }}</div>
+            <div class="metric-label"><i class="bi bi-collection me-1"></i> Total Tickets</div>
+            <div class="metric-value text-cyan">{{ metrics.total_tickets }}</div>
         </div>
     </div>
     <div class="col-md-3 col-6">
-        <div class="card metric-card p-3">
-            <div class="metric-label">Open</div>
+        <div class="card metric-card p-3" style="border-top-color: var(--accent-cyan);">
+            <div class="metric-label"><i class="bi bi-exclamation-circle me-1"></i> Open</div>
             <div class="metric-value text-primary">{{ metrics.open_tickets }}</div>
         </div>
     </div>
     <div class="col-md-3 col-6">
-        <div class="card metric-card p-3">
-            <div class="metric-label">Closed</div>
+        <div class="card metric-card border-top-purple p-3">
+            <div class="metric-label"><i class="bi bi-check-circle me-1"></i> Closed</div>
             <div class="metric-value text-secondary">{{ metrics.closed_tickets }}</div>
         </div>
     </div>
     <div class="col-md-3 col-6">
-        <div class="card metric-card p-3">
-            <div class="metric-label">SLA Compliance</div>
+        <div class="card metric-card border-top-green p-3">
+            <div class="metric-label"><i class="bi bi-shield-check me-1"></i> SLA Compliance</div>
             <div class="metric-value text-success">{{ metrics.sla_compliance_percent }}%</div>
         </div>
     </div>
 </div>
 
+<!-- ===== ROW 2: SLA Status Breakdown ===== -->
 <div class="row g-3 mb-4">
     <div class="col-md-3 col-6">
-        <div class="card metric-card p-3">
-            <div class="metric-label">Within SLA</div>
+        <div class="card metric-card border-top-green p-3">
+            <div class="metric-label"><i class="bi bi-check2-all me-1"></i> Within SLA</div>
             <div class="metric-value text-success">{{ metrics.within_sla }}</div>
         </div>
     </div>
     <div class="col-md-3 col-6">
-        <div class="card metric-card p-3">
-            <div class="metric-label">Near Breach</div>
+        <div class="card metric-card border-top-amber p-3">
+            <div class="metric-label"><i class="bi bi-exclamation-triangle me-1"></i> Near Breach</div>
             <div class="metric-value text-warning">{{ metrics.near_breach }}</div>
         </div>
     </div>
     <div class="col-md-3 col-6">
-        <div class="card metric-card p-3">
-            <div class="metric-label">Breached</div>
+        <div class="card metric-card border-top-red p-3">
+            <div class="metric-label"><i class="bi bi-x-octagon me-1"></i> Breached</div>
             <div class="metric-value text-danger">{{ metrics.breached }}</div>
         </div>
     </div>
     <div class="col-md-3 col-6">
         <div class="card metric-card p-3">
-            <div class="metric-label">No Matching Rule</div>
+            <div class="metric-label"><i class="bi bi-question-circle me-1"></i> No Matching Rule</div>
             <div class="metric-value text-muted">{{ metrics.no_matching_rule }}</div>
         </div>
     </div>
 </div>
 
+<!-- ===== ROW 3: Avg Resolution ===== -->
 <div class="row g-3 mb-4">
     <div class="col-lg-3 col-6">
         <div class="card metric-card p-3">
-            <div class="metric-label">Avg Resolution Time</div>
+            <div class="metric-label"><i class="bi bi-stopwatch me-1"></i> Avg Resolution Time</div>
             <div class="metric-value" style="font-size:1.3rem;">{{ metrics.avg_resolution_minutes }} min</div>
         </div>
     </div>
 </div>
 
+<!-- ===== ROW 4: Charts ===== -->
 <div class="row g-4 mb-4">
     <div class="col-lg-6">
         <div class="card p-3">
-            <h6>SLA Status Distribution</h6>
-            <canvas id="slaStatusChart" height="200"></canvas>
+            <h6><i class="bi bi-pie-chart-fill"></i> SLA Status Distribution</h6>
+            <canvas id="slaStatusChart" height="220"></canvas>
         </div>
     </div>
     <div class="col-lg-6">
         <div class="card p-3">
-            <h6>Severity / Priority / Criticality Distribution</h6>
-            <canvas id="taxonomyChart" height="200"></canvas>
+            <h6><i class="bi bi-bar-chart-fill"></i> Severity / Priority / Criticality</h6>
+            <canvas id="taxonomyChart" height="220"></canvas>
         </div>
     </div>
 </div>
@@ -103,33 +109,42 @@
 <div class="row g-4 mb-4">
     <div class="col-lg-6">
         <div class="card p-3">
-            <h6>Breached vs Non-Breached</h6>
-            <canvas id="breachChart" height="200"></canvas>
+            <h6><i class="bi bi-shield-exclamation"></i> Breached vs Non-Breached</h6>
+            <canvas id="breachChart" height="220"></canvas>
         </div>
     </div>
     <div class="col-lg-6">
         <div class="card p-3">
-            <h6>Monthly SLA Trend</h6>
-            <canvas id="trendChart" height="200"></canvas>
+            <h6><i class="bi bi-graph-up-arrow"></i> Monthly SLA Trend</h6>
+            <canvas id="trendChart" height="220"></canvas>
         </div>
     </div>
 </div>
 
+<!-- ===== Analyst Performance Table ===== -->
 <div class="card p-3">
-    <h6>Analyst-wise Performance</h6>
-    <table class="table table-hover align-middle">
+    <h6><i class="bi bi-people-fill"></i> Analyst Performance</h6>
+    <table class="table table-hover align-middle analyst-table">
         <thead>
             <tr><th>Analyst</th><th>Total Tickets</th><th>Breached</th><th>Compliance</th></tr>
         </thead>
         <tbody>
         {% for analyst, stats in metrics.analyst_stats.items() %}
             <tr>
-                <td>{{ analyst }}</td>
+                <td><i class="bi bi-person-circle text-cyan me-1"></i> {{ analyst }}</td>
                 <td>{{ stats.total }}</td>
-                <td>{{ stats.breached }}</td>
+                <td>
+                    {% if stats.breached > 0 %}
+                    <span class="text-danger">{{ stats.breached }}</span>
+                    {% else %}
+                    <span class="text-success">{{ stats.breached }}</span>
+                    {% endif %}
+                </td>
                 <td>
                     {% set compliance = ((stats.total - stats.breached) / stats.total * 100) | round(1) if stats.total else 0 %}
-                    {{ compliance }}%
+                    <span class="{% if compliance >= 90 %}compliance-high{% elif compliance >= 70 %}compliance-medium{% else %}compliance-low{% endif %}">
+                        {{ compliance }}%
+                    </span>
                 </td>
             </tr>
         {% endfor %}
@@ -140,20 +155,51 @@
 
 {% block scripts %}
 <script>
+/* ============================================================
+   SOC DARK THEME — Chart.js Global Configuration
+   ============================================================ */
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.05)';
+Chart.defaults.font.family = "'Rajdhani', 'Inter', sans-serif";
+Chart.defaults.font.weight = 500;
+
 const metrics = {{ metrics | tojson }};
 
+/* — Donut: SLA Status Distribution — */
 new Chart(document.getElementById('slaStatusChart'), {
     type: 'doughnut',
     data: {
         labels: Object.keys(metrics.sla_status_distribution),
         datasets: [{
             data: Object.values(metrics.sla_status_distribution),
-            backgroundColor: ['#22c55e', '#f59e0b', '#ef4444', '#9ca3af']
+            backgroundColor: ['#00e676', '#ffb300', '#ff1744', '#475569'],
+            borderColor: '#0c1120',
+            borderWidth: 3,
+            hoverBorderColor: '#00e5ff',
+            hoverBorderWidth: 2
         }]
     },
-    options: { responsive: true }
+    options: {
+        responsive: true,
+        cutout: '65%',
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { padding: 16, usePointStyle: true, pointStyleWidth: 10 }
+            },
+            tooltip: {
+                backgroundColor: '#111827',
+                titleColor: '#00e5ff',
+                bodyColor: '#e2e8f0',
+                borderColor: '#1e293b',
+                borderWidth: 1,
+                cornerRadius: 8
+            }
+        }
+    }
 });
 
+/* — Bar: Taxonomy Distribution — */
 new Chart(document.getElementById('taxonomyChart'), {
     type: 'bar',
     data: {
@@ -161,34 +207,135 @@ new Chart(document.getElementById('taxonomyChart'), {
         datasets: [{
             label: 'Ticket Count',
             data: Object.values(metrics.taxonomy_distribution),
-            backgroundColor: '#2563eb'
+            backgroundColor: 'rgba(0, 229, 255, 0.25)',
+            borderColor: '#00e5ff',
+            borderWidth: 1,
+            borderRadius: 6,
+            hoverBackgroundColor: 'rgba(0, 229, 255, 0.45)'
         }]
     },
-    options: { responsive: true, plugins: { legend: { display: false } } }
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: '#111827',
+                titleColor: '#00e5ff',
+                bodyColor: '#e2e8f0',
+                borderColor: '#1e293b',
+                borderWidth: 1,
+                cornerRadius: 8
+            }
+        },
+        scales: {
+            x: {
+                grid: { display: false },
+                ticks: { color: '#64748b', font: { family: "'Rajdhani'" } }
+            },
+            y: {
+                grid: { color: 'rgba(255,255,255,0.04)' },
+                ticks: { color: '#64748b', font: { family: "'Rajdhani'" } }
+            }
+        }
+    }
 });
 
+/* — Pie: Breached vs Non-Breached — */
 new Chart(document.getElementById('breachChart'), {
     type: 'pie',
     data: {
         labels: ['Breached', 'Not Breached'],
         datasets: [{
             data: [metrics.breached, metrics.total_tickets - metrics.breached],
-            backgroundColor: ['#ef4444', '#22c55e']
+            backgroundColor: ['#ff1744', '#00e676'],
+            borderColor: '#0c1120',
+            borderWidth: 3,
+            hoverBorderColor: '#00e5ff',
+            hoverBorderWidth: 2
         }]
     },
-    options: { responsive: true }
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { padding: 16, usePointStyle: true, pointStyleWidth: 10 }
+            },
+            tooltip: {
+                backgroundColor: '#111827',
+                titleColor: '#00e5ff',
+                bodyColor: '#e2e8f0',
+                borderColor: '#1e293b',
+                borderWidth: 1,
+                cornerRadius: 8
+            }
+        }
+    }
 });
 
+/* — Line: Monthly SLA Trend — */
 new Chart(document.getElementById('trendChart'), {
     type: 'line',
     data: {
         labels: metrics.monthly_trend.labels,
         datasets: [
-            { label: 'Within SLA', data: metrics.monthly_trend.within, borderColor: '#22c55e', tension: 0.3 },
-            { label: 'Breached', data: metrics.monthly_trend.breached, borderColor: '#ef4444', tension: 0.3 }
+            {
+                label: 'Within SLA',
+                data: metrics.monthly_trend.within,
+                borderColor: '#00e676',
+                backgroundColor: 'rgba(0, 230, 118, 0.08)',
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#00e676',
+                pointBorderColor: '#0c1120',
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            },
+            {
+                label: 'Breached',
+                data: metrics.monthly_trend.breached,
+                borderColor: '#ff1744',
+                backgroundColor: 'rgba(255, 23, 68, 0.08)',
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#ff1744',
+                pointBorderColor: '#0c1120',
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }
         ]
     },
-    options: { responsive: true }
+    options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { padding: 16, usePointStyle: true, pointStyleWidth: 10 }
+            },
+            tooltip: {
+                backgroundColor: '#111827',
+                titleColor: '#00e5ff',
+                bodyColor: '#e2e8f0',
+                borderColor: '#1e293b',
+                borderWidth: 1,
+                cornerRadius: 8
+            }
+        },
+        scales: {
+            x: {
+                grid: { color: 'rgba(255,255,255,0.04)' },
+                ticks: { color: '#64748b', font: { family: "'Rajdhani'" } }
+            },
+            y: {
+                grid: { color: 'rgba(255,255,255,0.04)' },
+                ticks: { color: '#64748b', font: { family: "'Rajdhani'" } },
+                beginAtZero: true
+            }
+        }
+    }
 });
 </script>
 {% endblock %}

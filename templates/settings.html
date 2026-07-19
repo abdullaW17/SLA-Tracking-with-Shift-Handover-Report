@@ -2,12 +2,14 @@
 {% block title %}Settings{% endblock %}
 
 {% block content %}
-<h3 class="mb-3">Settings</h3>
+<div class="dashboard-header">
+    <h3><i class="bi bi-gear-fill text-cyan"></i> Settings</h3>
+</div>
 
 <div class="row g-4">
     <div class="col-lg-6">
         <div class="card p-3">
-            <h6>DFIR-IRIS &amp; System Settings</h6>
+            <h6><i class="bi bi-hdd-network-fill"></i> DFIR-IRIS &amp; System Settings</h6>
             <p class="small text-muted">
                 The IRIS API key itself is never stored here - it stays in the
                 <code>.env</code> file (<code>IRIS_API_KEY</code>) for security.
@@ -35,7 +37,7 @@
 
     <div class="col-lg-6">
         <div class="card p-3">
-            <h6>Field Mappings (DFIR-IRIS &rarr; Local Ticket Model)</h6>
+            <h6><i class="bi bi-diagram-3-fill"></i> Field Mappings (DFIR-IRIS &rarr; Local Ticket Model)</h6>
             <p class="small text-muted">
                 Adjust these if your IRIS instance uses different field names
                 than assumed by default. These are global defaults; client-specific
@@ -58,7 +60,7 @@
                     <input type="text" name="source_field" class="form-control form-control-sm" placeholder="source_field (e.g. severity)" required>
                 </div>
                 <div class="col-2">
-                    <button type="submit" class="btn btn-sm btn-dark w-100">Save</button>
+                    <button type="submit" class="btn btn-sm btn-primary w-100">Save</button>
                 </div>
             </form>
         </div>
@@ -69,7 +71,7 @@
     <div class="col-12">
         <div class="card p-3">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="mb-0">Clients</h6>
+                <h6 class="mb-0"><i class="bi bi-building-fill"></i> Clients</h6>
                 <a href="{{ url_for('settings.client_list') }}" class="btn btn-sm btn-outline-primary">
                     <i class="bi bi-building"></i> Manage Clients ({{ clients|length }})
                 </a>

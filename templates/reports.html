@@ -2,11 +2,13 @@
 {% block title %}Reports{% endblock %}
 
 {% block content %}
-<h3 class="mb-3">Reports</h3>
+<div class="dashboard-header">
+    <h3><i class="bi bi-file-earmark-bar-graph text-cyan"></i> Reports</h3>
+</div>
 
 {% if current_user.has_permission('generate_reports') %}
 <div class="card p-3 mb-4">
-    <h6>Generate New Report</h6>
+    <h6><i class="bi bi-file-earmark-plus"></i> Generate New Report</h6>
     <form method="POST" action="{{ url_for('reports.generate') }}" class="row g-2 align-items-end">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="col-md-3">
@@ -51,7 +53,7 @@
                 <tr>
                     <td>{{ r.report_name }}</td>
                     <td>{{ r.report_type }}</td>
-                    <td><span class="badge bg-info text-dark">{{ r.file_format | upper }}</span></td>
+                    <td><span class="badge bg-info">{{ r.file_format | upper }}</span></td>
                     <td>{{ r.generated_at.strftime('%Y-%m-%d %H:%M') if r.generated_at else '-' }}</td>
                     <td class="text-end">
                         <a href="{{ url_for('reports.download', report_id=r.id) }}" class="btn btn-sm btn-outline-primary">

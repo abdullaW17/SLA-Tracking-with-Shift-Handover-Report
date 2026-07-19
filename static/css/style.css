@@ -1,62 +1,935 @@
+/* ==========================================================================
+   CYBERSECURITY SOC DASHBOARD — Design System
+   ==========================================================================
+   Color Palette:
+     --bg-base:      Deep space navy
+     --bg-surface:   Dark card / panel
+     --bg-elevated:  Raised surface (modals, dropdowns)
+     --border:       Subtle divider
+     --text-primary: Near-white
+     --text-muted:   Dimmed label
+     --accent-cyan:  Primary brand / interactive
+     --accent-green: Success / Within SLA
+     --accent-amber: Warning / Near Breach
+     --accent-red:   Danger / Breached
+   ========================================================================== */
+
+:root {
+  /* Backgrounds */
+  --bg-base:       #060a13;
+  --bg-surface:    #0c1120;
+  --bg-elevated:   #111827;
+  --bg-input:      #0f1629;
+
+  /* Borders */
+  --border-color:  #1e293b;
+  --border-glow:   rgba(0, 240, 255, 0.15);
+
+  /* Text */
+  --text-primary:  #e2e8f0;
+  --text-muted:    #64748b;
+  --text-heading:  #f1f5f9;
+
+  /* Accent Palette */
+  --accent-cyan:   #00e5ff;
+  --accent-green:  #00e676;
+  --accent-amber:  #ffb300;
+  --accent-red:    #ff1744;
+  --accent-purple: #7c4dff;
+
+  /* Shadows */
+  --shadow-card:   0 1px 3px rgba(0, 0, 0, 0.4), 0 0 12px rgba(0, 229, 255, 0.04);
+  --shadow-glow:   0 0 20px rgba(0, 229, 255, 0.12);
+
+  /* Radii */
+  --radius-sm:     8px;
+  --radius-md:     12px;
+  --radius-lg:     16px;
+
+  /* Fonts */
+  --font-display:  'Rajdhani', 'Segoe UI', sans-serif;
+  --font-body:     'Inter', 'Segoe UI', sans-serif;
+  --font-mono:     'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+
+/* ==========================================================================
+   BASE RESETS & BODY
+   ========================================================================== */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 body {
-    background-color: #f4f6f9;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--text-heading);
+  letter-spacing: 0.02em;
+}
+
+
+/* ==========================================================================
+   CUSTOM SCROLLBARS
+   ========================================================================== */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-cyan);
+}
+
+
+/* ==========================================================================
+   NAVBAR — Glassmorphic
+   ========================================================================== */
+
+.navbar {
+  background: rgba(10, 15, 28, 0.85) !important;
+  backdrop-filter: blur(16px) saturate(1.6);
+  -webkit-backdrop-filter: blur(16px) saturate(1.6);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 1px 24px rgba(0, 0, 0, 0.5);
 }
 
 .navbar-brand {
-    font-weight: 600;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: 0.06em;
+  color: var(--accent-cyan) !important;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
+.navbar-brand i {
+  font-size: 1.4rem;
+  filter: drop-shadow(0 0 6px rgba(0, 229, 255, 0.5));
+}
+
+.navbar .nav-link {
+  color: var(--text-muted) !important;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 0.92rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.5rem 0.85rem !important;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.navbar .nav-link:hover {
+  color: var(--text-primary) !important;
+  background: rgba(0, 229, 255, 0.06);
+}
+
+.navbar .nav-link.active {
+  color: var(--accent-cyan) !important;
+  background: rgba(0, 229, 255, 0.1);
+}
+
+.navbar .nav-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 2px;
+  background: var(--accent-cyan);
+  border-radius: 1px;
+  box-shadow: 0 0 8px var(--accent-cyan);
+}
+
+.navbar-text {
+  color: var(--text-muted) !important;
+  font-size: 0.85rem;
+}
+
+.navbar .badge.bg-secondary {
+  background: rgba(0, 229, 255, 0.12) !important;
+  color: var(--accent-cyan) !important;
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.navbar .btn-outline-light {
+  color: var(--text-muted);
+  border-color: var(--border-color);
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
+}
+.navbar .btn-outline-light:hover {
+  color: var(--accent-red);
+  border-color: var(--accent-red);
+  background: rgba(255, 23, 68, 0.08);
+}
+
+
+/* ==========================================================================
+   LAYOUT WRAPPER
+   ========================================================================== */
+
+.container-fluid.py-4.px-4 {
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+
+/* ==========================================================================
+   CARDS — Dark panels with subtle glow
+   ========================================================================== */
+
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  color: var(--text-primary);
+}
+
+.card h6 {
+  font-family: var(--font-display);
+  color: var(--text-heading);
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.card h6::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 1em;
+  background: var(--accent-cyan);
+  border-radius: 2px;
+  box-shadow: 0 0 6px var(--accent-cyan);
+}
+
+
+/* ==========================================================================
+   METRIC CARDS — KPI Widgets
+   ========================================================================== */
+
 .metric-card {
-    border: none;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    transition: transform 0.15s ease;
+  border: 1px solid var(--border-color);
+  border-top: 3px solid var(--accent-cyan);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(ellipse at top center, rgba(0, 229, 255, 0.03) 0%, transparent 70%);
+  pointer-events: none;
 }
 
 .metric-card:hover {
-    transform: translateY(-2px);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-glow);
+  border-top-color: var(--accent-cyan);
 }
 
 .metric-value {
-    font-size: 1.9rem;
-    font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
 }
 
 .metric-label {
-    font-size: 0.85rem;
-    color: #6b7280;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
 }
 
-.card {
-    border: none;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+
+/* Metric accent colors - override Bootstrap text-* with SOC palette */
+.metric-card .text-primary  { color: var(--accent-cyan) !important; }
+.metric-card .text-success  { color: var(--accent-green) !important; }
+.metric-card .text-warning  { color: var(--accent-amber) !important; }
+.metric-card .text-danger   { color: var(--accent-red) !important; }
+.metric-card .text-secondary { color: var(--text-muted) !important; }
+.metric-card .text-muted    { color: var(--text-muted) !important; }
+
+/* Per-status top border accents */
+.metric-card.border-top-green  { border-top-color: var(--accent-green); }
+.metric-card.border-top-green::before {
+  background: radial-gradient(ellipse at top center, rgba(0, 230, 118, 0.04) 0%, transparent 70%);
 }
+.metric-card.border-top-amber  { border-top-color: var(--accent-amber); }
+.metric-card.border-top-amber::before {
+  background: radial-gradient(ellipse at top center, rgba(255, 179, 0, 0.04) 0%, transparent 70%);
+}
+.metric-card.border-top-red    { border-top-color: var(--accent-red); }
+.metric-card.border-top-red::before {
+  background: radial-gradient(ellipse at top center, rgba(255, 23, 68, 0.04) 0%, transparent 70%);
+}
+.metric-card.border-top-purple { border-top-color: var(--accent-purple); }
+
+
+/* ==========================================================================
+   TABLES — Dark data grids
+   ========================================================================== */
+
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-color: var(--text-primary);
+  --bs-table-border-color: var(--border-color);
+  --bs-table-hover-bg: rgba(0, 229, 255, 0.04);
+  --bs-table-hover-color: var(--text-primary);
+  --bs-table-striped-bg: rgba(255, 255, 255, 0.015);
+  border-color: var(--border-color);
+  font-size: 0.88rem;
+}
+
+.table thead th {
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-cyan);
+  border-bottom: 2px solid rgba(0, 229, 255, 0.2) !important;
+  padding: 0.75rem;
+  white-space: nowrap;
+  background: rgba(0, 229, 255, 0.02);
+}
+
+.table tbody tr {
+  transition: background 0.15s ease;
+}
+
+.table tbody td {
+  padding: 0.65rem 0.75rem;
+  vertical-align: middle;
+  border-bottom-color: var(--border-color);
+}
+
+.table tbody tr:hover {
+  background: rgba(0, 229, 255, 0.04) !important;
+}
+
+.table-dark, .table thead.table-dark {
+  --bs-table-bg: var(--bg-elevated);
+  --bs-table-color: var(--text-primary);
+}
+
+.table code {
+  color: var(--accent-cyan);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+
+/* ==========================================================================
+   BADGES — Cybersecurity status indicators
+   ========================================================================== */
 
 .badge-sla {
-    font-size: 0.78rem;
-    padding: 0.4em 0.7em;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.35em 0.75em;
+  letter-spacing: 0.03em;
+  border-radius: var(--radius-sm);
 }
 
+.badge.bg-success {
+  background: rgba(0, 230, 118, 0.15) !important;
+  color: var(--accent-green) !important;
+  border: 1px solid rgba(0, 230, 118, 0.3);
+}
+
+.badge.bg-warning {
+  background: rgba(255, 179, 0, 0.15) !important;
+  color: var(--accent-amber) !important;
+  border: 1px solid rgba(255, 179, 0, 0.3);
+}
+
+.badge.bg-danger {
+  background: rgba(255, 23, 68, 0.15) !important;
+  color: var(--accent-red) !important;
+  border: 1px solid rgba(255, 23, 68, 0.3);
+}
+
+.badge.bg-info {
+  background: rgba(0, 229, 255, 0.12) !important;
+  color: var(--accent-cyan) !important;
+  border: 1px solid rgba(0, 229, 255, 0.25);
+}
+
+.badge.bg-secondary {
+  background: rgba(100, 116, 139, 0.15) !important;
+  color: var(--text-muted) !important;
+  border: 1px solid rgba(100, 116, 139, 0.3);
+}
+
+.badge.bg-light {
+  background: rgba(30, 41, 59, 0.6) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.badge.bg-primary {
+  background: rgba(0, 229, 255, 0.12) !important;
+  color: var(--accent-cyan) !important;
+  border: 1px solid rgba(0, 229, 255, 0.25);
+}
+
+
+/* ==========================================================================
+   FORMS & INPUTS — Dark console style
+   ========================================================================== */
+
+.form-control, .form-select {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  border-radius: var(--radius-sm);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-control:focus, .form-select:focus {
+  background: var(--bg-input);
+  border-color: var(--accent-cyan);
+  color: var(--text-primary);
+  box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.1), 0 0 12px rgba(0, 229, 255, 0.06);
+}
+
+.form-control::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.form-label {
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.form-text {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.form-check-input {
+  background-color: var(--bg-input);
+  border-color: var(--border-color);
+}
+.form-check-input:checked {
+  background-color: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+}
+.form-check-label {
+  color: var(--text-primary);
+}
+
+select.form-select option {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+
+/* ==========================================================================
+   BUTTONS — Cyber-styled
+   ========================================================================== */
+
+.btn-primary {
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.2), rgba(0, 229, 255, 0.1));
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  color: var(--accent-cyan);
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+}
+.btn-primary:hover, .btn-primary:focus {
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.3), rgba(0, 229, 255, 0.15));
+  border-color: var(--accent-cyan);
+  color: #ffffff;
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.2);
+}
+
+.btn-outline-primary {
+  border-color: rgba(0, 229, 255, 0.3);
+  color: var(--accent-cyan);
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+.btn-outline-primary:hover {
+  background: rgba(0, 229, 255, 0.1);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.btn-outline-secondary {
+  border-color: var(--border-color);
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-weight: 500;
+}
+.btn-outline-secondary:hover {
+  background: rgba(100, 116, 139, 0.1);
+  border-color: var(--text-muted);
+  color: var(--text-primary);
+}
+
+.btn-outline-danger {
+  border-color: rgba(255, 23, 68, 0.3);
+  color: var(--accent-red);
+}
+.btn-outline-danger:hover {
+  background: rgba(255, 23, 68, 0.1);
+  border-color: var(--accent-red);
+  color: var(--accent-red);
+}
+
+.btn-outline-warning {
+  border-color: rgba(255, 179, 0, 0.3);
+  color: var(--accent-amber);
+}
+.btn-outline-warning:hover {
+  background: rgba(255, 179, 0, 0.1);
+  border-color: var(--accent-amber);
+  color: var(--accent-amber);
+}
+
+.btn-dark {
+  background: var(--bg-elevated);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+.btn-dark:hover {
+  background: rgba(0, 229, 255, 0.1);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.btn-link {
+  color: var(--accent-cyan);
+  text-decoration: none;
+}
+.btn-link:hover {
+  color: #ffffff;
+}
+
+.btn-secondary {
+  background: var(--bg-elevated);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+
+/* ==========================================================================
+   ALERTS / FLASH MESSAGES
+   ========================================================================== */
+
+.alert {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+}
+
+.alert-success {
+  border-left: 3px solid var(--accent-green);
+  background: rgba(0, 230, 118, 0.06);
+}
+.alert-danger, .alert-error {
+  border-left: 3px solid var(--accent-red);
+  background: rgba(255, 23, 68, 0.06);
+}
+.alert-warning {
+  border-left: 3px solid var(--accent-amber);
+  background: rgba(255, 179, 0, 0.06);
+}
+.alert-info {
+  border-left: 3px solid var(--accent-cyan);
+  background: rgba(0, 229, 255, 0.06);
+}
+
+.btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+
+/* ==========================================================================
+   LOGIN PAGE — Secure Portal Console
+   ========================================================================== */
+
 .login-wrapper {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #1f2937, #2563eb);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-base);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Animated grid background */
+.login-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image:
+    linear-gradient(rgba(0, 229, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: gridScroll 20s linear infinite;
+}
+
+@keyframes gridScroll {
+  0%   { transform: translate(0, 0); }
+  100% { transform: translate(40px, 40px); }
+}
+
+/* Glowing orb */
+.login-wrapper::after {
+  content: '';
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 229, 255, 0.08) 0%, transparent 70%);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 
 .login-card {
-    width: 100%;
-    max-width: 380px;
-    border-radius: 16px;
+  width: 100%;
+  max-width: 400px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 0 40px rgba(0, 229, 255, 0.06), 0 4px 24px rgba(0, 0, 0, 0.4);
+  position: relative;
+  z-index: 1;
 }
 
-table.table thead th {
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    color: #6b7280;
-    border-bottom: 2px solid #e5e7eb;
+.login-card .card-body {
+  padding: 2rem;
+}
+
+.login-card h4 {
+  font-family: var(--font-display);
+  color: var(--text-heading);
+  letter-spacing: 0.04em;
+}
+
+
+/* ==========================================================================
+   PAGINATION — Dark styling
+   ========================================================================== */
+
+.page-link {
+  background: var(--bg-surface);
+  border-color: var(--border-color);
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+}
+.page-link:hover {
+  background: rgba(0, 229, 255, 0.08);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+.page-item.active .page-link {
+  background: rgba(0, 229, 255, 0.15);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+
+/* ==========================================================================
+   MODALS — Dark dialogs
+   ========================================================================== */
+
+.modal-content {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+}
+
+.modal-header {
+  border-bottom-color: var(--border-color);
+}
+.modal-header .modal-title {
+  font-family: var(--font-display);
+  color: var(--text-heading);
+}
+.modal-footer {
+  border-top-color: var(--border-color);
+}
+
+
+/* ==========================================================================
+   PREFORMATTED / CODE — Terminal style
+   ========================================================================== */
+
+pre {
+  background: var(--bg-base) !important;
+  color: var(--accent-green);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+code {
+  color: var(--accent-cyan);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.bg-light {
+  background: var(--bg-elevated) !important;
+}
+
+
+/* ==========================================================================
+   HR / DIVIDERS
+   ========================================================================== */
+
+hr {
+  border-color: var(--border-color);
+  opacity: 0.5;
+}
+
+
+/* ==========================================================================
+   LIVE STATUS INDICATOR — Pulsing dot
+   ========================================================================== */
+
+.status-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent-green);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.status-live .pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  box-shadow: 0 0 6px var(--accent-green);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.5; transform: scale(0.85); }
+}
+
+
+/* ==========================================================================
+   DASHBOARD HEADER BAR
+   ========================================================================== */
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.dashboard-header h3 {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+
+/* ==========================================================================
+   CHART CONTAINERS
+   ========================================================================== */
+
+.chart-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-card);
+}
+
+.chart-card h6::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 1em;
+  background: var(--accent-cyan);
+  border-radius: 2px;
+  box-shadow: 0 0 6px var(--accent-cyan);
+  margin-right: 0.5rem;
+}
+
+
+/* ==========================================================================
+   ANALYST TABLE STYLING
+   ========================================================================== */
+
+.analyst-table .compliance-high {
+  color: var(--accent-green);
+  font-weight: 700;
+}
+.analyst-table .compliance-medium {
+  color: var(--accent-amber);
+  font-weight: 700;
+}
+.analyst-table .compliance-low {
+  color: var(--accent-red);
+  font-weight: 700;
+}
+
+
+/* ==========================================================================
+   UTILITY CLASSES
+   ========================================================================== */
+
+.text-cyan   { color: var(--accent-cyan) !important; }
+.text-neon-green { color: var(--accent-green) !important; }
+.text-neon-red   { color: var(--accent-red) !important; }
+.text-neon-amber { color: var(--accent-amber) !important; }
+.border-cyan { border-color: var(--accent-cyan) !important; }
+
+.text-muted {
+  color: var(--text-muted) !important;
+}
+
+.text-primary {
+  color: var(--accent-cyan) !important;
+}
+
+.text-info {
+  color: var(--accent-cyan) !important;
+}
+
+.text-success {
+  color: var(--accent-green) !important;
+}
+
+.text-danger {
+  color: var(--accent-red) !important;
+}
+
+.text-warning {
+  color: var(--accent-amber) !important;
+}
+
+a {
+  color: var(--accent-cyan);
+}
+a:hover {
+  color: #ffffff;
+}
+
+
+/* ==========================================================================
+   CARD CONDITION BADGES (SLA Rules page)
+   ========================================================================== */
+
+.badge.bg-light.text-dark {
+  background: rgba(30, 41, 59, 0.6) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.badge.bg-light.text-dark code {
+  color: var(--accent-cyan);
+}
+
+
+/* ==========================================================================
+   MATCHING CONDITIONS CARD (SLA Rule Form)
+   ========================================================================== */
+
+.card.bg-light.border {
+  background: var(--bg-elevated) !important;
+  border-color: var(--border-color) !important;
+}
+
+.card.bg-light.border .card-title.text-primary {
+  color: var(--accent-cyan) !important;
+  font-family: var(--font-display);
+}
+
+
+/* ==========================================================================
+   RESPONSIVE ADJUSTMENTS
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .metric-value {
+    font-size: 1.6rem;
+  }
+  .metric-label {
+    font-size: 0.7rem;
+  }
+  .dashboard-header h3 {
+    font-size: 1.2rem;
+  }
 }
