@@ -3,65 +3,41 @@
 
 {% block content %}
 <div class="dashboard-header">
-    <h3><i class="bi bi-gear-fill text-cyan"></i> Settings</h3>
+    <h3><i class="bi bi-gear-fill me-2"></i>Settings</h3>
 </div>
 
 <div class="row g-4">
     <div class="col-lg-6">
         <div class="card p-3">
-            <h6><i class="bi bi-hdd-network-fill"></i> DFIR-IRIS &amp; System Settings</h6>
+            <h6><i class="bi bi-hdd-network-fill me-1"></i> DFIR-IRIS &amp; System Settings</h6>
             <p class="small text-muted">
-                The IRIS API key itself is never stored here - it stays in the
-                <code>.env</code> file (<code>IRIS_API_KEY</code>) for security.
+                The IRIS API key itself is never stored here - it stays in the <code>.env</code> file (<code>IRIS_API_KEY</code>) for security.
                 IRIS API key configured: {% if iris_configured %}<span class="badge bg-success">Yes</span>{% else %}<span class="badge bg-danger">No</span>{% endif %}
             </p>
             <form method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 {% for key, label in settings_keys %}
-                <div class="mb-3">
-                    <label class="form-label">{{ label }}</label>
-                    <input type="text" name="{{ key }}" class="form-control" value="{{ current_values.get(key, '') }}">
-                </div>
+                <div class="mb-3"><label class="form-label">{{ label }}</label><input type="text" name="{{ key }}" class="form-control" value="{{ current_values.get(key, '') }}"></div>
                 {% endfor %}
                 <button type="submit" class="btn btn-primary btn-sm">Save Settings</button>
             </form>
             <hr>
             <form method="POST" action="{{ url_for('settings.test_iris_connection') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-plug"></i> Test IRIS Connection
-                </button>
+                <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-plug"></i> Test IRIS Connection</button>
             </form>
         </div>
     </div>
-
     <div class="col-lg-6">
         <div class="card p-3">
-            <h6><i class="bi bi-diagram-3-fill"></i> Field Mappings (DFIR-IRIS &rarr; Local Ticket Model)</h6>
-            <p class="small text-muted">
-                Adjust these if your IRIS instance uses different field names
-                than assumed by default. These are global defaults; client-specific
-                overrides can be set per-client.
-            </p>
-            <table class="table table-sm">
-                <thead><tr><th>Local Field</th><th>Source Field</th></tr></thead>
-                <tbody>
-                {% for m in field_mappings %}
-                    <tr><td><code>{{ m.local_field }}</code></td><td><code>{{ m.source_field }}</code></td></tr>
-                {% endfor %}
-                </tbody>
-            </table>
+            <h6><i class="bi bi-diagram-3-fill me-1"></i> Field Mappings</h6>
+            <p class="small text-muted">Adjust these if your IRIS instance uses different field names than assumed by default.</p>
+            <table class="table table-sm"><thead><tr><th>Local Field</th><th>Source Field</th></tr></thead><tbody>{% for m in field_mappings %}<tr><td><code>{{ m.local_field }}</code></td><td><code>{{ m.source_field }}</code></td></tr>{% endfor %}</tbody></table>
             <form method="POST" action="{{ url_for('settings.save_field_mapping') }}" class="row g-2">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="col-5">
-                    <input type="text" name="local_field" class="form-control form-control-sm" placeholder="local_field (e.g. severity)" required>
-                </div>
-                <div class="col-5">
-                    <input type="text" name="source_field" class="form-control form-control-sm" placeholder="source_field (e.g. severity)" required>
-                </div>
-                <div class="col-2">
-                    <button type="submit" class="btn btn-sm btn-primary w-100">Save</button>
-                </div>
+                <div class="col-5"><input type="text" name="local_field" class="form-control form-control-sm" placeholder="local_field" required></div>
+                <div class="col-5"><input type="text" name="source_field" class="form-control form-control-sm" placeholder="source_field" required></div>
+                <div class="col-2"><button type="submit" class="btn btn-sm btn-primary w-100">Save</button></div>
             </form>
         </div>
     </div>
@@ -71,24 +47,10 @@
     <div class="col-12">
         <div class="card p-3">
             <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="mb-0"><i class="bi bi-building-fill"></i> Clients</h6>
-                <a href="{{ url_for('settings.client_list') }}" class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-building"></i> Manage Clients ({{ clients|length }})
-                </a>
+                <h6 class="mb-0"><i class="bi bi-building-fill me-1"></i> Clients</h6>
+                <a href="{{ url_for('settings.client_list') }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-building"></i> Manage Clients ({{ clients|length }})</a>
             </div>
-            <table class="table table-sm">
-                <thead><tr><th>Name</th><th>IRIS Customer ID</th><th>Timezone</th><th>Status</th></tr></thead>
-                <tbody>
-                {% for c in clients %}
-                <tr>
-                    <td>{{ c.name }}</td>
-                    <td><code>{{ c.iris_customer_id or '—' }}</code></td>
-                    <td>{{ c.timezone }}</td>
-                    <td><span class="badge bg-{{ 'success' if c.is_active else 'secondary' }}">{{ 'Active' if c.is_active else 'Inactive' }}</span></td>
-                </tr>
-                {% endfor %}
-                </tbody>
-            </table>
+            <table class="table table-sm"><thead><tr><th>Name</th><th>IRIS Customer ID</th><th>Timezone</th><th>Status</th></tr></thead><tbody>{% for c in clients %}<tr><td>{{ c.name }}</td><td><code>{{ c.iris_customer_id or '—' }}</code></td><td>{{ c.timezone }}</td><td><span class="badge bg-{{ 'success' if c.is_active else 'secondary' }}">{{ 'Active' if c.is_active else 'Inactive' }}</span></td></tr>{% endfor %}</tbody></table>
         </div>
     </div>
 </div>

@@ -24,12 +24,20 @@ from routes.decorators import permission_required
 dashboard_bp = Blueprint("dashboard", __name__)
 
 
-def _build_dashboard_metrics(client_id=None):
+def _build_dashboard_metrics(client_id=None, month=None):
     query = Ticket.query
     if client_id:
         query = query.filter_by(client_id=client_id)
 
     tickets = query.all()
+
+    # --- Month filtering ---
+    if month:
+        tickets = [
+            t for t in tickets
+            if t.created_at_source and t.created_at_source.strftime("%Y-%m") == month
+        ]
+
     total = len(tickets)
     open_tickets = sum(1 for t in tickets if t.is_open())
     closed_tickets = total - open_tickets
@@ -52,7 +60,7 @@ def _build_dashboard_metrics(client_id=None):
     else:
         avg_resolution_minutes = 0
 
-    # Analyst-wise performance
+    # --- Analyst-wise performance ---
     analyst_stats = defaultdict(lambda: {"total": 0, "breached": 0})
     for t in tickets:
         analyst = t.assigned_to or "Unassigned"
@@ -60,16 +68,20 @@ def _build_dashboard_metrics(client_id=None):
         if t.sla_status in (SLA_BREACHED, SLA_CLOSED_AFTER_BREACH):
             analyst_stats[analyst]["breached"] += 1
 
-    # Severity / priority / criticality distribution (whichever field is used)
+    # --- Severity / priority / criticality distribution ---
     taxonomy_counter = Counter()
     for t in tickets:
         label = t.severity or t.priority or t.criticality
         if label:
             taxonomy_counter[label] += 1
 
-    # Monthly SLA trend (based on created_at_source month)
+    # --- Monthly SLA trend (based on created_at_source month) ---
     monthly_trend = defaultdict(lambda: {"within": 0, "breached": 0})
-    for t in tickets:
+    # Use ALL tickets (unfiltered by month) for the trend chart
+    all_tickets = Ticket.query.all()
+    if client_id:
+        all_tickets = [t for t in all_tickets if t.client_id == client_id]
+    for t in all_tickets:
         if not t.created_at_source:
             continue
         key = t.created_at_source.strftime("%Y-%m")
@@ -80,6 +92,79 @@ def _build_dashboard_metrics(client_id=None):
 
     sorted_months = sorted(monthly_trend.keys())
 
+    # --- Top Issues: group by severity/category, count breaches, trends ---
+    top_issues_counter = Counter()
+    top_issues_breach = Counter()
+    for t in tickets:
+        label = t.severity or t.priority or t.criticality or "Unclassified"
+        top_issues_counter[label] += 1
+        if t.sla_status in (SLA_BREACHED, SLA_CLOSED_AFTER_BREACH):
+            top_issues_breach[label] += 1
+
+    top_issues = []
+    for label, count in top_issues_counter.most_common(6):
+        breach_count = top_issues_breach.get(label, 0)
+        compliance = round(((count - breach_count) / count) * 100, 1) if count else 0
+        top_issues.append({
+            "label": label,
+            "count": count,
+            "breached": breach_count,
+            "compliance": compliance,
+        })
+
+    # --- Quarterly received cases (for area chart) ---
+    quarterly = defaultdict(int)
+    for t in all_tickets:
+        if not t.created_at_source:
+            continue
+        if client_id and t.client_id != client_id:
+            continue
+        m = t.created_at_source.month
+        if m <= 3:
+            q = "Q1"
+        elif m <= 6:
+            q = "Q2"
+        elif m <= 9:
+            q = "Q3"
+        else:
+            q = "Q4"
+        y = t.created_at_source.strftime("%Y")
+        quarterly[f"{y} {q}"] += 1
+
+    sorted_quarters = sorted(quarterly.keys())
+
+    # --- Client-wise ticket counts ---
+    client_counts = Counter()
+    for t in tickets:
+        if t.client_id:
+            client_obj = Client.query.get(t.client_id)
+            if client_obj:
+                client_counts[client_obj.name] += 1
+        else:
+            client_counts["Unassigned"] += 1
+
+    # --- Available months for month tab selector ---
+    available_months = sorted(set(
+        t.created_at_source.strftime("%Y-%m")
+        for t in all_tickets
+        if t.created_at_source
+    ), reverse=True)
+
+    # --- Year-to-date SLA compliance ---
+    now = datetime.now(timezone.utc)
+    ytd_tickets = [
+        t for t in all_tickets
+        if t.created_at_source and t.created_at_source.year == now.year
+    ]
+    if client_id:
+        ytd_tickets = [t for t in ytd_tickets if t.client_id == client_id]
+    ytd_total = len(ytd_tickets)
+    ytd_within = sum(
+        1 for t in ytd_tickets
+        if t.sla_status in (SLA_WITHIN, SLA_CLOSED_WITHIN)
+    )
+    ytd_compliance = round((ytd_within / ytd_total) * 100, 1) if ytd_total else 0.0
+
     return {
         "total_tickets": total,
         "open_tickets": open_tickets,
@@ -89,6 +174,7 @@ def _build_dashboard_metrics(client_id=None):
         "breached": breached,
         "no_matching_rule": no_rule,
         "sla_compliance_percent": compliance_pct,
+        "ytd_compliance_percent": ytd_compliance,
         "avg_resolution_minutes": avg_resolution_minutes,
         "analyst_stats": dict(analyst_stats),
         "sla_status_distribution": {
@@ -103,6 +189,13 @@ def _build_dashboard_metrics(client_id=None):
             "within": [monthly_trend[m]["within"] for m in sorted_months],
             "breached": [monthly_trend[m]["breached"] for m in sorted_months],
         },
+        "top_issues": top_issues,
+        "quarterly_received": {
+            "labels": sorted_quarters,
+            "values": [quarterly[q] for q in sorted_quarters],
+        },
+        "client_counts": dict(client_counts),
+        "available_months": available_months,
     }
 
 
@@ -111,13 +204,15 @@ def _build_dashboard_metrics(client_id=None):
 @permission_required("view_dashboard")
 def index():
     client_id = request.args.get("client_id", type=int)
+    month = request.args.get("month", type=str)
     clients = Client.query.filter_by(is_active=True).order_by(Client.name).all()
-    metrics = _build_dashboard_metrics(client_id=client_id)
+    metrics = _build_dashboard_metrics(client_id=client_id, month=month)
     return render_template(
         "dashboard.html",
         metrics=metrics,
         clients=clients,
         selected_client_id=client_id,
+        selected_month=month,
     )
 
 
@@ -127,4 +222,5 @@ def index():
 def metrics_json():
     """Used by the dashboard template to refresh Chart.js data via fetch()."""
     client_id = request.args.get("client_id", type=int)
-    return jsonify(_build_dashboard_metrics(client_id=client_id))
+    month = request.args.get("month", type=str)
+    return jsonify(_build_dashboard_metrics(client_id=client_id, month=month))

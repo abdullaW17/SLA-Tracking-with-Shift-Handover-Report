@@ -6,8 +6,7 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3 class="mb-0">
-        <code class="text-cyan me-2">{{ ticket.external_id }}</code>
-        <span style="font-size: 0.85em;">{{ ticket.title }}</span>
+        <code style="color: var(--blue-700);">{{ ticket.external_id }}</code> &mdash; {{ ticket.title }}
     </h3>
     <span class="badge bg-{{ sla_badge_color.get(ticket.sla_status, 'secondary') }} badge-sla fs-6">{{ ticket.sla_status or 'N/A' }}</span>
 </div>
@@ -15,7 +14,7 @@
 <div class="row g-4">
     <div class="col-lg-6">
         <div class="card p-3">
-            <h6><i class="bi bi-info-circle-fill"></i> Ticket Details</h6>
+            <h6><i class="bi bi-info-circle-fill me-1"></i> Ticket Details</h6>
             <table class="table table-sm">
                 <tr><th>Source System</th><td>{{ ticket.source_system }}</td></tr>
                 <tr><th>Status</th><td>{{ ticket.status or '-' }}</td></tr>
@@ -31,23 +30,14 @@
     </div>
     <div class="col-lg-6">
         <div class="card p-3">
-            <h6><i class="bi bi-clock-history"></i> SLA Details</h6>
+            <h6><i class="bi bi-clock-history me-1"></i> SLA Details</h6>
             <table class="table table-sm">
                 <tr><th>Matched SLA Rule</th><td>{{ ticket.sla_rule.rule_name if ticket.sla_rule_id and ticket.sla_rule else 'No Matching Rule' }}</td></tr>
                 <tr><th>Response Deadline</th><td>{{ ticket.response_deadline or '-' }}</td></tr>
                 <tr><th>Resolution Deadline</th><td>{{ ticket.resolution_deadline or '-' }}</td></tr>
                 <tr><th>Response SLA Status</th><td>{{ ticket.response_sla_status or '-' }}</td></tr>
                 <tr><th>Resolution SLA Status</th><td>{{ ticket.resolution_sla_status or '-' }}</td></tr>
-                <tr>
-                    <th>Breach Duration</th>
-                    <td>
-                        {% if ticket.breach_duration_minutes and ticket.breach_duration_minutes > 0 %}
-                        <span class="text-danger fw-bold">{{ ticket.breach_duration_minutes }} minutes</span>
-                        {% else %}
-                        {{ ticket.breach_duration_minutes or 0 }} minutes
-                        {% endif %}
-                    </td>
-                </tr>
+                <tr><th>Breach Duration</th><td>{% if ticket.breach_duration_minutes and ticket.breach_duration_minutes > 0 %}<span class="text-danger fw-bold">{{ ticket.breach_duration_minutes }} minutes</span>{% else %}{{ ticket.breach_duration_minutes or 0 }} minutes{% endif %}</td></tr>
             </table>
             <form method="POST" action="{{ url_for('tickets.trigger_recalculate') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -58,7 +48,7 @@
 </div>
 
 <div class="card p-3 mt-4">
-    <h6><i class="bi bi-code-slash"></i> Raw Source Payload</h6>
+    <h6><i class="bi bi-code-slash me-1"></i> Raw Source Payload</h6>
     <pre class="small p-3 rounded" style="max-height: 300px; overflow:auto;">{{ ticket.raw_payload_json or 'No raw payload stored.' }}</pre>
 </div>
 {% endblock %}

@@ -5,9 +5,9 @@
 {% block content %}
 <div class="container mt-4">
   <div class="dashboard-header">
-    <h3><i class="bi bi-building-fill text-cyan"></i> Clients</h3>
+    <h3><i class="bi bi-building-fill text-primary"></i> Clients</h3>
     <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createClientModal">
-      <i class="bi bi-plus-circle"></i> New Client
+      <i class="bi bi-plus-circle me-1"></i> New Client
     </button>
   </div>
 
@@ -28,7 +28,7 @@
           {% for client in clients %}
           <tr>
             <td>{{ client.id }}</td>
-            <td>{{ client.name }}</td>
+            <td><strong>{{ client.name }}</strong></td>
             <td><code>{{ client.iris_customer_id or '—' }}</code></td>
             <td>{{ client.timezone }}</td>
             <td>
@@ -40,7 +40,7 @@
               <button class="btn btn-sm btn-outline-primary"
                       data-bs-toggle="modal"
                       data-bs-target="#editClientModal{{ client.id }}">
-                <i class="bi bi-pencil"></i> Edit
+                <i class="bi bi-pencil me-1"></i> Edit
               </button>
               <form method="POST" action="{{ url_for('settings.client_toggle', client_id=client.id) }}" class="d-inline">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

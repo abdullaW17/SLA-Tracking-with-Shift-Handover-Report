@@ -3,37 +3,25 @@
 
 {% block content %}
 <div class="dashboard-header">
-    <h3><i class="bi bi-file-earmark-bar-graph text-cyan"></i> Reports</h3>
+    <h3><i class="bi bi-file-earmark-bar-graph me-2"></i>Reports</h3>
 </div>
 
 {% if current_user.has_permission('generate_reports') %}
 <div class="card p-3 mb-4">
-    <h6><i class="bi bi-file-earmark-plus"></i> Generate New Report</h6>
+    <h6><i class="bi bi-file-earmark-plus me-1"></i> Generate New Report</h6>
     <form method="POST" action="{{ url_for('reports.generate') }}" class="row g-2 align-items-end">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="col-md-3">
             <label class="form-label">Client</label>
-            <select name="client_id" class="form-select">
-                <option value="">All Clients</option>
-                {% for c in clients %}
-                <option value="{{ c.id }}">{{ c.name }}</option>
-                {% endfor %}
-            </select>
+            <select name="client_id" class="form-select"><option value="">All Clients</option>{% for c in clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select>
         </div>
         <div class="col-md-4">
             <label class="form-label">Report Type</label>
-            <select name="report_type" class="form-select">
-                {% for rt in report_types %}
-                <option value="{{ rt }}">{{ rt }}</option>
-                {% endfor %}
-            </select>
+            <select name="report_type" class="form-select">{% for rt in report_types %}<option value="{{ rt }}">{{ rt }}</option>{% endfor %}</select>
         </div>
         <div class="col-md-2">
             <label class="form-label">Format</label>
-            <select name="file_format" class="form-select">
-                <option value="pdf">PDF</option>
-                <option value="xlsx">Excel (.xlsx)</option>
-            </select>
+            <select name="file_format" class="form-select"><option value="pdf">PDF</option><option value="xlsx">Excel (.xlsx)</option></select>
         </div>
         <div class="col-md-3">
             <button type="submit" class="btn btn-primary w-100"><i class="bi bi-file-earmark-plus"></i> Generate</button>
@@ -45,21 +33,14 @@
 <div class="card p-0">
     <div class="table-responsive">
         <table class="table table-hover mb-0 align-middle">
-            <thead>
-                <tr><th>Report Name</th><th>Type</th><th>Format</th><th>Generated At</th><th></th></tr>
-            </thead>
+            <thead><tr><th>Report Name</th><th>Type</th><th>Format</th><th>Generated At</th><th></th></tr></thead>
             <tbody>
             {% for r in reports %}
                 <tr>
-                    <td>{{ r.report_name }}</td>
-                    <td>{{ r.report_type }}</td>
+                    <td>{{ r.report_name }}</td><td>{{ r.report_type }}</td>
                     <td><span class="badge bg-info">{{ r.file_format | upper }}</span></td>
                     <td>{{ r.generated_at.strftime('%Y-%m-%d %H:%M') if r.generated_at else '-' }}</td>
-                    <td class="text-end">
-                        <a href="{{ url_for('reports.download', report_id=r.id) }}" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-download"></i> Download
-                        </a>
-                    </td>
+                    <td class="text-end"><a href="{{ url_for('reports.download', report_id=r.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-download"></i> Download</a></td>
                 </tr>
             {% else %}
                 <tr><td colspan="5" class="text-center text-muted py-4">No reports generated yet.</td></tr>

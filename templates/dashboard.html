@@ -2,12 +2,14 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
+<!-- ===== DASHBOARD HEADER ===== -->
 <div class="dashboard-header">
-    <h3>
-        <i class="bi bi-grid-1x2-fill text-cyan"></i> Security Operations Dashboard
-    </h3>
+    <h3><i class="bi bi-grid-1x2-fill me-2"></i>Service Level Management Overview Dashboard</h3>
     <div class="d-flex gap-2 align-items-center">
         <form method="GET" class="d-flex gap-2 align-items-center">
+            {% if selected_month %}
+            <input type="hidden" name="month" value="{{ selected_month }}">
+            {% endif %}
             <select name="client_id" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
                 <option value="">All Clients</option>
                 {% for c in clients %}
@@ -18,180 +20,273 @@
         <form method="POST" action="{{ url_for('tickets.trigger_recalculate') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-outline-primary btn-sm" type="submit">
-                <i class="bi bi-arrow-repeat"></i> Recalculate SLA
+                <i class="bi bi-arrow-repeat"></i> Recalculate
             </button>
         </form>
     </div>
 </div>
 
-<!-- ===== ROW 1: Core Metrics ===== -->
-<div class="row g-3 mb-4">
-    <div class="col-md-3 col-6">
-        <div class="card metric-card p-3">
-            <div class="metric-label"><i class="bi bi-collection me-1"></i> Total Tickets</div>
-            <div class="metric-value text-cyan">{{ metrics.total_tickets }}</div>
-        </div>
+<!-- ===== MONTH TABS ===== -->
+{% if metrics.available_months %}
+<div class="month-tabs">
+    <a class="month-tab {% if not selected_month %}active{% endif %}"
+       href="{{ url_for('dashboard.index', client_id=selected_client_id or '') }}">All</a>
+    {% for m in metrics.available_months[:12] %}
+    <a class="month-tab {% if selected_month == m %}active{% endif %}"
+       href="{{ url_for('dashboard.index', month=m, client_id=selected_client_id or '') }}">
+        {{ m }}
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- ===== KPI HEADER BAR ===== -->
+<div class="kpi-bar">
+    <div class="kpi-item">
+        <div class="kpi-value">{{ metrics.sla_compliance_percent }}%</div>
+        <div class="kpi-label">SLA Compliance</div>
     </div>
-    <div class="col-md-3 col-6">
-        <div class="card metric-card p-3" style="border-top-color: var(--accent-cyan);">
-            <div class="metric-label"><i class="bi bi-exclamation-circle me-1"></i> Open</div>
-            <div class="metric-value text-primary">{{ metrics.open_tickets }}</div>
-        </div>
+    <div class="kpi-item">
+        <div class="kpi-value">{{ metrics.ytd_compliance_percent }}%</div>
+        <div class="kpi-label">Year to Date SLA</div>
     </div>
-    <div class="col-md-3 col-6">
-        <div class="card metric-card border-top-purple p-3">
-            <div class="metric-label"><i class="bi bi-check-circle me-1"></i> Closed</div>
-            <div class="metric-value text-secondary">{{ metrics.closed_tickets }}</div>
-        </div>
+    <div class="kpi-item">
+        <div class="kpi-value">{{ metrics.total_tickets }}</div>
+        <div class="kpi-label">Received Cases Total</div>
     </div>
-    <div class="col-md-3 col-6">
-        <div class="card metric-card border-top-green p-3">
-            <div class="metric-label"><i class="bi bi-shield-check me-1"></i> SLA Compliance</div>
-            <div class="metric-value text-success">{{ metrics.sla_compliance_percent }}%</div>
-        </div>
+    <div class="kpi-item">
+        <div class="kpi-value">{{ metrics.open_tickets }}</div>
+        <div class="kpi-label">Open Tickets</div>
+    </div>
+    <div class="kpi-item">
+        <div class="kpi-value">{{ metrics.breached }}</div>
+        <div class="kpi-label">Breached</div>
+    </div>
+    <div class="kpi-item">
+        <div class="kpi-value">{{ metrics.avg_resolution_minutes }}<small style="font-size:0.5em;"> min</small></div>
+        <div class="kpi-label">Avg Resolution Time</div>
     </div>
 </div>
 
-<!-- ===== ROW 2: SLA Status Breakdown ===== -->
-<div class="row g-3 mb-4">
-    <div class="col-md-3 col-6">
-        <div class="card metric-card border-top-green p-3">
-            <div class="metric-label"><i class="bi bi-check2-all me-1"></i> Within SLA</div>
-            <div class="metric-value text-success">{{ metrics.within_sla }}</div>
-        </div>
-    </div>
-    <div class="col-md-3 col-6">
-        <div class="card metric-card border-top-amber p-3">
-            <div class="metric-label"><i class="bi bi-exclamation-triangle me-1"></i> Near Breach</div>
-            <div class="metric-value text-warning">{{ metrics.near_breach }}</div>
-        </div>
-    </div>
-    <div class="col-md-3 col-6">
-        <div class="card metric-card border-top-red p-3">
-            <div class="metric-label"><i class="bi bi-x-octagon me-1"></i> Breached</div>
-            <div class="metric-value text-danger">{{ metrics.breached }}</div>
-        </div>
-    </div>
-    <div class="col-md-3 col-6">
-        <div class="card metric-card p-3">
-            <div class="metric-label"><i class="bi bi-question-circle me-1"></i> No Matching Rule</div>
-            <div class="metric-value text-muted">{{ metrics.no_matching_rule }}</div>
-        </div>
-    </div>
-</div>
+<!-- ===== 3-COLUMN DASHBOARD GRID ===== -->
+<div class="dashboard-grid">
 
-<!-- ===== ROW 3: Avg Resolution ===== -->
-<div class="row g-3 mb-4">
-    <div class="col-lg-3 col-6">
-        <div class="card metric-card p-3">
-            <div class="metric-label"><i class="bi bi-stopwatch me-1"></i> Avg Resolution Time</div>
-            <div class="metric-value" style="font-size:1.3rem;">{{ metrics.avg_resolution_minutes }} min</div>
+    <!-- ────────── LEFT PANEL ────────── -->
+    <div class="dashboard-panel">
+        <!-- Comment Box -->
+        <div class="comment-box">
+            <strong><i class="bi bi-chat-left-text me-1"></i> Comment</strong>
+            All pending cases should be resolved within SLA targets this period.
         </div>
-    </div>
-</div>
 
-<!-- ===== ROW 4: Charts ===== -->
-<div class="row g-4 mb-4">
-    <div class="col-lg-6">
+        <!-- SLA Compliance Panel -->
+        <div class="sla-panel">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                    <div class="sla-big-pct {% if metrics.sla_compliance_percent >= 90 %}green{% elif metrics.sla_compliance_percent >= 70 %}amber{% else %}red{% endif %}">
+                        {{ metrics.sla_compliance_percent }}%
+                    </div>
+                    <div class="sla-sub-label">SLA Compliance Rate</div>
+                </div>
+                <div class="text-end">
+                    <div class="sla-big-pct" style="font-size:1.8rem;">{{ metrics.within_sla }}</div>
+                    <div class="sla-sub-label">Within SLA</div>
+                </div>
+            </div>
+
+            <div class="sla-stat-row">
+                <span class="sla-stat-value text-success">{{ metrics.within_sla }}</span>
+                <span class="sla-stat-label">Within SLA</span>
+            </div>
+            <div class="sla-stat-row">
+                <span class="sla-stat-value text-warning">{{ metrics.near_breach }}</span>
+                <span class="sla-stat-label">Near Breach</span>
+            </div>
+            <div class="sla-stat-row">
+                <span class="sla-stat-value text-danger">{{ metrics.breached }}</span>
+                <span class="sla-stat-label">Breached</span>
+            </div>
+            <div class="sla-stat-row">
+                <span class="sla-stat-value text-muted">{{ metrics.no_matching_rule }}</span>
+                <span class="sla-stat-label">No Matching Rule</span>
+            </div>
+        </div>
+
+        <!-- Received Cases Area Chart -->
         <div class="card p-3">
-            <h6><i class="bi bi-pie-chart-fill"></i> SLA Status Distribution</h6>
-            <canvas id="slaStatusChart" height="220"></canvas>
+            <h6><i class="bi bi-graph-up me-1"></i> Received Cases</h6>
+            <canvas id="receivedChart" height="160"></canvas>
         </div>
     </div>
-    <div class="col-lg-6">
-        <div class="card p-3">
-            <h6><i class="bi bi-bar-chart-fill"></i> Severity / Priority / Criticality</h6>
-            <canvas id="taxonomyChart" height="220"></canvas>
-        </div>
-    </div>
-</div>
 
-<div class="row g-4 mb-4">
-    <div class="col-lg-6">
+    <!-- ────────── CENTER PANEL ────────── -->
+    <div class="dashboard-panel">
+        <!-- Donut: Open vs Closed -->
         <div class="card p-3">
-            <h6><i class="bi bi-shield-exclamation"></i> Breached vs Non-Breached</h6>
-            <canvas id="breachChart" height="220"></canvas>
+            <h6><i class="bi bi-pie-chart-fill me-1"></i> Current Cases Status</h6>
+            <div class="row align-items-center">
+                <div class="col-5 text-center">
+                    <div style="font-size:1.8rem; font-weight:800; color: var(--blue-800);">{{ metrics.closed_tickets }}</div>
+                    <div style="font-size:0.72rem; color: var(--text-medium); font-weight:600;">{{ ((metrics.closed_tickets / metrics.total_tickets * 100) | round(0) | int) if metrics.total_tickets else 0 }}% Resolved</div>
+                </div>
+                <div class="col-3">
+                    <canvas id="statusDonut" height="130"></canvas>
+                </div>
+                <div class="col-4 text-center">
+                    <div style="font-size:1.8rem; font-weight:800; color: var(--amber);">{{ metrics.open_tickets }}</div>
+                    <div style="font-size:0.72rem; color: var(--text-medium); font-weight:600;">{{ ((metrics.open_tickets / metrics.total_tickets * 100) | round(0) | int) if metrics.total_tickets else 0 }}% Pending</div>
+                </div>
+            </div>
         </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="card p-3">
-            <h6><i class="bi bi-graph-up-arrow"></i> Monthly SLA Trend</h6>
-            <canvas id="trendChart" height="220"></canvas>
-        </div>
-    </div>
-</div>
 
-<!-- ===== Analyst Performance Table ===== -->
-<div class="card p-3">
-    <h6><i class="bi bi-people-fill"></i> Analyst Performance</h6>
-    <table class="table table-hover align-middle analyst-table">
-        <thead>
-            <tr><th>Analyst</th><th>Total Tickets</th><th>Breached</th><th>Compliance</th></tr>
-        </thead>
-        <tbody>
-        {% for analyst, stats in metrics.analyst_stats.items() %}
-            <tr>
-                <td><i class="bi bi-person-circle text-cyan me-1"></i> {{ analyst }}</td>
-                <td>{{ stats.total }}</td>
-                <td>
-                    {% if stats.breached > 0 %}
-                    <span class="text-danger">{{ stats.breached }}</span>
+        <!-- Bar: Severity/Priority Distribution -->
+        <div class="card p-3">
+            <h6><i class="bi bi-bar-chart-fill me-1"></i> Severity / Priority / Criticality</h6>
+            <canvas id="taxonomyChart" height="160"></canvas>
+        </div>
+
+        <!-- Client Breakdown -->
+        {% if metrics.client_counts %}
+        <div class="card p-3">
+            <h6><i class="bi bi-building me-1"></i> Client Breakdown</h6>
+            <div class="d-flex flex-column gap-2">
+                {% for client_name, count in metrics.client_counts.items() %}
+                <div class="client-mini-card">
+                    <span class="client-name"><i class="bi bi-building me-1"></i> {{ client_name }}</span>
+                    <span class="client-count">{{ count }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ────────── RIGHT PANEL ────────── -->
+    <div class="dashboard-panel">
+        <!-- Top Issues Table -->
+        <div class="card p-3">
+            <h6><i class="bi bi-exclamation-triangle-fill me-1"></i> Top Issues</h6>
+            <div class="table-responsive">
+                <table class="table table-sm top-issues-table mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width:38%;">Category</th>
+                            <th class="text-end" style="width:18%;">Count</th>
+                            <th class="text-end" style="width:22%;">Breached</th>
+                            <th class="text-end" style="width:22%;">Compl.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for issue in metrics.top_issues %}
+                        <tr>
+                            <td class="text-break">{{ issue.label }}</td>
+                            <td class="text-end fw-bold">{{ issue.count }}</td>
+                            <td class="text-end">
+                                {% if issue.breached > 0 %}
+                                <span class="trend-up"><i class="bi bi-arrow-up-short"></i> {{ issue.breached }}</span>
+                                {% else %}
+                                <span class="trend-down"><i class="bi bi-arrow-down-short"></i> 0</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <span class="{% if issue.compliance >= 90 %}compliance-high{% elif issue.compliance >= 70 %}compliance-medium{% else %}compliance-low{% endif %}">
+                                    {{ issue.compliance }}%
+                                </span>
+                            </td>
+                        </tr>
                     {% else %}
-                    <span class="text-success">{{ stats.breached }}</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% set compliance = ((stats.total - stats.breached) / stats.total * 100) | round(1) if stats.total else 0 %}
-                    <span class="{% if compliance >= 90 %}compliance-high{% elif compliance >= 70 %}compliance-medium{% else %}compliance-low{% endif %}">
-                        {{ compliance }}%
-                    </span>
-                </td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+                        <tr><td colspan="4" class="text-center text-muted py-3">No data available</td></tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Regions Placeholder -->
+        <div class="card p-3">
+            <h6><i class="bi bi-geo-alt-fill me-1"></i> Regions</h6>
+            <div class="regions-placeholder">
+                <i class="bi bi-map"></i>
+                Regional data coming soon.<br>
+                <small>Map visualization will be added when data is provided.</small>
+            </div>
+        </div>
+
+        <!-- Analyst Performance -->
+        <div class="card p-3">
+            <h6><i class="bi bi-people-fill me-1"></i> Analyst Performance</h6>
+            <div class="table-responsive">
+                <table class="table table-sm analyst-table mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width:38%;">Analyst</th>
+                            <th class="text-end" style="width:18%;">Total</th>
+                            <th class="text-end" style="width:22%;">Breached</th>
+                            <th class="text-end" style="width:22%;">SLA %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for analyst, stats in metrics.analyst_stats.items() %}
+                        <tr>
+                            <td class="text-break"><i class="bi bi-person-circle me-1 text-primary"></i>{{ analyst }}</td>
+                            <td class="text-end">{{ stats.total }}</td>
+                            <td class="text-end">
+                                {% if stats.breached > 0 %}<span class="text-danger">{{ stats.breached }}</span>{% else %}0{% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% set comp = ((stats.total - stats.breached) / stats.total * 100) | round(1) if stats.total else 0 %}
+                                <span class="{% if comp >= 90 %}compliance-high{% elif comp >= 70 %}compliance-medium{% else %}compliance-low{% endif %}">{{ comp }}%</span>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== Monthly SLA Trend (full width below grid) ===== -->
+<div class="card p-3 mt-3">
+    <h6><i class="bi bi-graph-up-arrow me-1"></i> Monthly SLA Trend</h6>
+    <canvas id="trendChart" height="100"></canvas>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 /* ============================================================
-   SOC DARK THEME — Chart.js Global Configuration
+   Corporate Blue Theme — Chart.js Global Defaults
    ============================================================ */
-Chart.defaults.color = '#94a3b8';
-Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.05)';
-Chart.defaults.font.family = "'Rajdhani', 'Inter', sans-serif";
+Chart.defaults.color = '#5a6a7e';
+Chart.defaults.borderColor = '#e8ecf1';
+Chart.defaults.font.family = "'Inter', -apple-system, sans-serif";
 Chart.defaults.font.weight = 500;
 
 const metrics = {{ metrics | tojson }};
 
-/* — Donut: SLA Status Distribution — */
-new Chart(document.getElementById('slaStatusChart'), {
+/* — Donut: Open vs Closed — */
+new Chart(document.getElementById('statusDonut'), {
     type: 'doughnut',
     data: {
-        labels: Object.keys(metrics.sla_status_distribution),
+        labels: ['Resolved', 'Pending'],
         datasets: [{
-            data: Object.values(metrics.sla_status_distribution),
-            backgroundColor: ['#00e676', '#ffb300', '#ff1744', '#475569'],
-            borderColor: '#0c1120',
-            borderWidth: 3,
-            hoverBorderColor: '#00e5ff',
-            hoverBorderWidth: 2
+            data: [metrics.closed_tickets, metrics.open_tickets],
+            backgroundColor: ['#1a2980', '#f39c12'],
+            borderColor: '#ffffff',
+            borderWidth: 3
         }]
     },
     options: {
         responsive: true,
-        cutout: '65%',
+        cutout: '60%',
         plugins: {
-            legend: {
-                position: 'bottom',
-                labels: { padding: 16, usePointStyle: true, pointStyleWidth: 10 }
-            },
+            legend: { display: false },
             tooltip: {
-                backgroundColor: '#111827',
-                titleColor: '#00e5ff',
-                bodyColor: '#e2e8f0',
-                borderColor: '#1e293b',
+                backgroundColor: '#ffffff',
+                titleColor: '#1a2980',
+                bodyColor: '#2c3e50',
+                borderColor: '#d5dde8',
                 borderWidth: 1,
                 cornerRadius: 8
             }
@@ -207,11 +302,48 @@ new Chart(document.getElementById('taxonomyChart'), {
         datasets: [{
             label: 'Ticket Count',
             data: Object.values(metrics.taxonomy_distribution),
-            backgroundColor: 'rgba(0, 229, 255, 0.25)',
-            borderColor: '#00e5ff',
-            borderWidth: 1,
-            borderRadius: 6,
-            hoverBackgroundColor: 'rgba(0, 229, 255, 0.45)'
+            backgroundColor: ['#1a2980', '#26418f', '#3b6eb5', '#5a8fd4', '#7babd6', '#a0c4e8'],
+            borderRadius: 4,
+            barThickness: 28
+        }]
+    },
+    options: {
+        responsive: true,
+        indexAxis: 'y',
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: '#ffffff',
+                titleColor: '#1a2980',
+                bodyColor: '#2c3e50',
+                borderColor: '#d5dde8',
+                borderWidth: 1,
+                cornerRadius: 8
+            }
+        },
+        scales: {
+            x: { grid: { color: '#e8ecf1' }, ticks: { color: '#5a6a7e' } },
+            y: { grid: { display: false }, ticks: { color: '#2c3e50', font: { weight: 600 } } }
+        }
+    }
+});
+
+/* — Area: Received Cases Trend — */
+new Chart(document.getElementById('receivedChart'), {
+    type: 'line',
+    data: {
+        labels: metrics.monthly_trend.labels,
+        datasets: [{
+            label: 'Received Cases',
+            data: metrics.monthly_trend.within.map((w, i) => w + (metrics.monthly_trend.breached[i] || 0)),
+            borderColor: '#1a2980',
+            backgroundColor: 'rgba(26, 41, 128, 0.08)',
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#1a2980',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            pointRadius: 3
         }]
     },
     options: {
@@ -219,56 +351,17 @@ new Chart(document.getElementById('taxonomyChart'), {
         plugins: {
             legend: { display: false },
             tooltip: {
-                backgroundColor: '#111827',
-                titleColor: '#00e5ff',
-                bodyColor: '#e2e8f0',
-                borderColor: '#1e293b',
+                backgroundColor: '#ffffff',
+                titleColor: '#1a2980',
+                bodyColor: '#2c3e50',
+                borderColor: '#d5dde8',
                 borderWidth: 1,
                 cornerRadius: 8
             }
         },
         scales: {
-            x: {
-                grid: { display: false },
-                ticks: { color: '#64748b', font: { family: "'Rajdhani'" } }
-            },
-            y: {
-                grid: { color: 'rgba(255,255,255,0.04)' },
-                ticks: { color: '#64748b', font: { family: "'Rajdhani'" } }
-            }
-        }
-    }
-});
-
-/* — Pie: Breached vs Non-Breached — */
-new Chart(document.getElementById('breachChart'), {
-    type: 'pie',
-    data: {
-        labels: ['Breached', 'Not Breached'],
-        datasets: [{
-            data: [metrics.breached, metrics.total_tickets - metrics.breached],
-            backgroundColor: ['#ff1744', '#00e676'],
-            borderColor: '#0c1120',
-            borderWidth: 3,
-            hoverBorderColor: '#00e5ff',
-            hoverBorderWidth: 2
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: {
-            legend: {
-                position: 'bottom',
-                labels: { padding: 16, usePointStyle: true, pointStyleWidth: 10 }
-            },
-            tooltip: {
-                backgroundColor: '#111827',
-                titleColor: '#00e5ff',
-                bodyColor: '#e2e8f0',
-                borderColor: '#1e293b',
-                borderWidth: 1,
-                cornerRadius: 8
-            }
+            x: { grid: { display: false }, ticks: { color: '#5a6a7e', font: { size: 10 } } },
+            y: { grid: { color: '#e8ecf1' }, ticks: { color: '#5a6a7e' }, beginAtZero: true }
         }
     }
 });
@@ -282,28 +375,26 @@ new Chart(document.getElementById('trendChart'), {
             {
                 label: 'Within SLA',
                 data: metrics.monthly_trend.within,
-                borderColor: '#00e676',
-                backgroundColor: 'rgba(0, 230, 118, 0.08)',
-                tension: 0.4,
+                borderColor: '#27ae60',
+                backgroundColor: 'rgba(39, 174, 96, 0.06)',
                 fill: true,
-                pointBackgroundColor: '#00e676',
-                pointBorderColor: '#0c1120',
+                tension: 0.3,
+                pointBackgroundColor: '#27ae60',
+                pointBorderColor: '#ffffff',
                 pointBorderWidth: 2,
-                pointRadius: 4,
-                pointHoverRadius: 6
+                pointRadius: 4
             },
             {
                 label: 'Breached',
                 data: metrics.monthly_trend.breached,
-                borderColor: '#ff1744',
-                backgroundColor: 'rgba(255, 23, 68, 0.08)',
-                tension: 0.4,
+                borderColor: '#e74c3c',
+                backgroundColor: 'rgba(231, 76, 60, 0.06)',
                 fill: true,
-                pointBackgroundColor: '#ff1744',
-                pointBorderColor: '#0c1120',
+                tension: 0.3,
+                pointBackgroundColor: '#e74c3c',
+                pointBorderColor: '#ffffff',
                 pointBorderWidth: 2,
-                pointRadius: 4,
-                pointHoverRadius: 6
+                pointRadius: 4
             }
         ]
     },
@@ -313,27 +404,20 @@ new Chart(document.getElementById('trendChart'), {
         plugins: {
             legend: {
                 position: 'bottom',
-                labels: { padding: 16, usePointStyle: true, pointStyleWidth: 10 }
+                labels: { padding: 16, usePointStyle: true, pointStyleWidth: 10, color: '#2c3e50' }
             },
             tooltip: {
-                backgroundColor: '#111827',
-                titleColor: '#00e5ff',
-                bodyColor: '#e2e8f0',
-                borderColor: '#1e293b',
+                backgroundColor: '#ffffff',
+                titleColor: '#1a2980',
+                bodyColor: '#2c3e50',
+                borderColor: '#d5dde8',
                 borderWidth: 1,
                 cornerRadius: 8
             }
         },
         scales: {
-            x: {
-                grid: { color: 'rgba(255,255,255,0.04)' },
-                ticks: { color: '#64748b', font: { family: "'Rajdhani'" } }
-            },
-            y: {
-                grid: { color: 'rgba(255,255,255,0.04)' },
-                ticks: { color: '#64748b', font: { family: "'Rajdhani'" } },
-                beginAtZero: true
-            }
+            x: { grid: { color: '#e8ecf1' }, ticks: { color: '#5a6a7e' } },
+            y: { grid: { color: '#e8ecf1' }, ticks: { color: '#5a6a7e' }, beginAtZero: true }
         }
     }
 });

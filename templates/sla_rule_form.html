@@ -6,7 +6,7 @@
 <div class="container mt-4">
   <div class="dashboard-header">
     <h3>
-      <i class="bi bi-{% if rule and rule.id is defined %}pencil-square{% else %}plus-circle{% endif %} text-cyan"></i>
+      <i class="bi bi-{% if rule and rule.id is defined %}pencil-square{% else %}plus-circle{% endif %} text-primary"></i>
       {{ 'Edit' if rule and rule.id is defined else 'Create' }} SLA Rule
     </h3>
   </div>
@@ -55,10 +55,8 @@
       <div class="form-text">Optional. The email address notified when SLA warning thresholds or breaches occur.</div>
     </div>
 
-    <div class="mb-4 card p-3" style="background: var(--bg-elevated); border-color: var(--border-color);">
-      <h5 class="text-cyan mb-3" style="font-family: var(--font-display);">
-        <i class="bi bi-filter-circle me-1"></i> Matching Conditions
-      </h5>
+    <div class="mb-4 card p-3 bg-light border">
+      <h5 class="card-title text-primary mb-3">Matching Conditions</h5>
       <p class="text-muted small mb-3">
         This rule will apply if <strong>all</strong> of the matching conditions below are satisfied (AND logic).
       </p>
@@ -104,7 +102,7 @@
 
       <div>
         <button type="button" class="btn btn-sm btn-outline-primary" id="add-condition-btn">
-          <i class="bi bi-plus-circle"></i> Add Another Condition
+          <i class="bi bi-plus-circle me-1"></i> Add Another Condition
         </button>
       </div>
     </div>
