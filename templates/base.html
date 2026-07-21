@@ -51,6 +51,11 @@
                        <i class="bi bi-file-earmark-bar-graph me-1"></i>Reports</a>
                 </li>
                 {% endif %}
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint and 'handover.' in request.endpoint %}active{% endif %}"
+                       href="{{ url_for('handover.handover_page') }}">
+                       <i class="bi bi-file-earmark-text-fill me-1"></i>Handover</a>
+                </li>
                 {% if current_user.has_permission('manage_iris_settings') %}
                 <li class="nav-item">
                     <a class="nav-link {% if request.endpoint and 'settings.' in request.endpoint %}active{% endif %}"
@@ -60,6 +65,26 @@
                 {% endif %}
             </ul>
             <div class="d-flex align-items-center gap-3">
+                <!-- Notification Bell Dropdown -->
+                <div class="dropdown" id="notificationDropdown">
+                    <button class="btn btn-outline-light btn-sm position-relative dropdown-toggle d-flex align-items-center gap-1"
+                            type="button" data-bs-toggle="dropdown" aria-expanded="false" id="notifBellBtn">
+                        <i class="bi bi-bell-fill"></i>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none" id="notifBadge">
+                            0
+                        </span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end p-0 shadow-lg border-0" style="width: 320px; max-height: 400px; overflow-y: auto; z-index: 1050;">
+                        <div class="p-2 border-bottom bg-light fw-bold text-dark d-flex justify-content-between align-items-center">
+                            <span style="font-size: 0.85rem;"><i class="bi bi-exclamation-triangle-fill text-warning me-1"></i> SLA Alerts</span>
+                            <span class="badge bg-secondary" id="notifHeaderCount">0</span>
+                        </div>
+                        <div id="notifItemsContainer" class="list-group list-group-flush small">
+                            <div class="p-3 text-center text-muted">No active SLA breach alerts</div>
+                        </div>
+                    </div>
+                </div>
+
                 <span class="status-live"><span class="pulse-dot"></span> Active</span>
                 <span class="navbar-text">
                     <span class="badge bg-secondary">{{ current_user.role }}</span>
@@ -92,6 +117,50 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    function fetchNotifications() {
+        fetch('/api/notifications')
+            .then(res => res.json())
+            .then(data => {
+                const badge = document.getElementById('notifBadge');
+                const headerCount = document.getElementById('notifHeaderCount');
+                const container = document.getElementById('notifItemsContainer');
+
+                if (!badge || !container) return;
+
+                if (data.total_count > 0) {
+                    badge.textContent = data.total_count;
+                    badge.classList.remove('d-none');
+                    headerCount.textContent = `${data.total_count} Urgent`;
+
+                    let html = '';
+                    data.notifications.forEach(n => {
+                        html += `
+                            <a href="${n.url}" class="list-group-item list-group-item-action p-2">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <strong class="text-dark">${n.external_id}</strong>
+                                    <span class="badge bg-${n.badge_color}">${n.sla_status}</span>
+                                </div>
+                                <div class="text-muted text-truncate" style="font-size: 0.8rem;">${n.title}</div>
+                                <div class="text-secondary mt-1" style="font-size: 0.75rem;"><i class="bi bi-building me-1"></i>${n.client_name}</div>
+                            </a>
+                        `;
+                    });
+                    container.innerHTML = html;
+                } else {
+                    badge.classList.add('d-none');
+                    headerCount.textContent = '0';
+                    container.innerHTML = '<div class="p-3 text-center text-muted">No active SLA breach alerts</div>';
+                }
+            })
+            .catch(err => console.error("Failed to load notifications", err));
+    }
+
+    fetchNotifications();
+    setInterval(fetchNotifications, 45000);
+});
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -2,19 +2,25 @@
 routes/dashboard_routes.py
 -----------------------------
 Main dashboard: aggregate SLA metrics + data for Chart.js visualizations.
-
-Multi-tenancy (Gap #1): metrics can be filtered by client_id. If no client
-filter is provided, all clients' data is shown (admin view).
+Includes Client Health Scorecards, Analyst Leaderboard, Activity Feed,
+and PDF/Excel Export endpoints.
 """
 
+import io
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 
-from flask import Blueprint, render_template, jsonify, request
+from flask import Blueprint, render_template, jsonify, request, send_file
 from flask_login import login_required
 
+import pandas as pd
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import landscape, A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+
 from extensions import db
-from models import Ticket, Client
+from models import Ticket, Client, ActivityLog
 from models.ticket import (
     SLA_WITHIN, SLA_NEAR_BREACH, SLA_BREACHED,
     SLA_CLOSED_WITHIN, SLA_CLOSED_AFTER_BREACH, SLA_NO_RULE,
@@ -60,13 +66,60 @@ def _build_dashboard_metrics(client_id=None, month=None):
     else:
         avg_resolution_minutes = 0
 
-    # --- Analyst-wise performance ---
-    analyst_stats = defaultdict(lambda: {"total": 0, "breached": 0})
+    # --- Analyst-wise performance & Leaderboard ---
+    analyst_map = defaultdict(lambda: {"total": 0, "breached": 0, "within": 0, "closed_minutes": 0, "closed_count": 0})
     for t in tickets:
         analyst = t.assigned_to or "Unassigned"
-        analyst_stats[analyst]["total"] += 1
+        analyst_map[analyst]["total"] += 1
         if t.sla_status in (SLA_BREACHED, SLA_CLOSED_AFTER_BREACH):
-            analyst_stats[analyst]["breached"] += 1
+            analyst_map[analyst]["breached"] += 1
+        elif t.sla_status in (SLA_WITHIN, SLA_CLOSED_WITHIN):
+            analyst_map[analyst]["within"] += 1
+
+        if t.closed_at_source and t.created_at_source:
+            analyst_map[analyst]["closed_minutes"] += (t.closed_at_source - t.created_at_source).total_seconds() / 60
+            analyst_map[analyst]["closed_count"] += 1
+
+    analyst_leaderboard = []
+    for name, s in analyst_map.items():
+        comp = round(((s["total"] - s["breached"]) / s["total"]) * 100, 1) if s["total"] else 0.0
+        avg_res = round(s["closed_minutes"] / s["closed_count"], 1) if s["closed_count"] else 0
+        analyst_leaderboard.append({
+            "name": name,
+            "total": s["total"],
+            "breached": s["breached"],
+            "within": s["within"],
+            "compliance": comp,
+            "avg_resolution": avg_res
+        })
+    # Sort analysts by compliance desc, then total desc
+    analyst_leaderboard.sort(key=lambda x: (x["compliance"], x["total"]), reverse=True)
+
+    # --- Client Health Scorecards ---
+    all_clients = Client.query.filter_by(is_active=True).order_by(Client.name).all()
+    client_health = []
+    for c in all_clients:
+        c_query = Ticket.query.filter_by(client_id=c.id)
+        if month:
+            c_tickets = [t for t in c_query.all() if t.created_at_source and t.created_at_source.strftime("%Y-%m") == month]
+        else:
+            c_tickets = c_query.all()
+
+        c_total = len(c_tickets)
+        c_open = sum(1 for t in c_tickets if t.is_open())
+        c_breached = sum(1 for t in c_tickets if t.sla_status in (SLA_BREACHED, SLA_CLOSED_AFTER_BREACH))
+        c_within = sum(1 for t in c_tickets if t.sla_status in (SLA_WITHIN, SLA_CLOSED_WITHIN))
+        c_comp = round((c_within / c_total) * 100, 1) if c_total else 100.0
+
+        client_health.append({
+            "id": c.id,
+            "name": c.name,
+            "city": c.city or "Islamabad",
+            "total": c_total,
+            "open": c_open,
+            "breached": c_breached,
+            "compliance": c_comp,
+        })
 
     # --- Severity / priority / criticality distribution ---
     taxonomy_counter = Counter()
@@ -77,7 +130,6 @@ def _build_dashboard_metrics(client_id=None, month=None):
 
     # --- Monthly SLA trend (based on created_at_source month) ---
     monthly_trend = defaultdict(lambda: {"within": 0, "breached": 0})
-    # Use ALL tickets (unfiltered by month) for the trend chart
     all_tickets = Ticket.query.all()
     if client_id:
         all_tickets = [t for t in all_tickets if t.client_id == client_id]
@@ -92,7 +144,7 @@ def _build_dashboard_metrics(client_id=None, month=None):
 
     sorted_months = sorted(monthly_trend.keys())
 
-    # --- Top Issues: group by severity/category, count breaches, trends ---
+    # --- Top Issues ---
     top_issues_counter = Counter()
     top_issues_breach = Counter()
     for t in tickets:
@@ -112,7 +164,7 @@ def _build_dashboard_metrics(client_id=None, month=None):
             "compliance": compliance,
         })
 
-    # --- Quarterly received cases (for area chart) ---
+    # --- Quarterly received cases ---
     quarterly = defaultdict(int)
     for t in all_tickets:
         if not t.created_at_source:
@@ -120,14 +172,7 @@ def _build_dashboard_metrics(client_id=None, month=None):
         if client_id and t.client_id != client_id:
             continue
         m = t.created_at_source.month
-        if m <= 3:
-            q = "Q1"
-        elif m <= 6:
-            q = "Q2"
-        elif m <= 9:
-            q = "Q3"
-        else:
-            q = "Q4"
+        q = "Q1" if m <= 3 else ("Q2" if m <= 6 else ("Q3" if m <= 9 else "Q4"))
         y = t.created_at_source.strftime("%Y")
         quarterly[f"{y} {q}"] += 1
 
@@ -143,7 +188,7 @@ def _build_dashboard_metrics(client_id=None, month=None):
         else:
             client_counts["Unassigned"] += 1
 
-    # --- Available months for month tab selector ---
+    # --- Available months ---
     available_months = sorted(set(
         t.created_at_source.strftime("%Y-%m")
         for t in all_tickets
@@ -206,6 +251,19 @@ def _build_dashboard_metrics(client_id=None, month=None):
             "lng": coords["lng"],
         }
 
+    # --- Recent Activity Feed ---
+    logs = ActivityLog.query.order_by(ActivityLog.timestamp.desc()).limit(12).all()
+    recent_activity = [
+        {
+            "id": l.id,
+            "event_type": l.event_type,
+            "description": l.description,
+            "actor": l.actor or "System",
+            "time_str": l.timestamp.strftime("%b %d, %H:%M") if l.timestamp else ""
+        }
+        for l in logs
+    ]
+
     return {
         "total_tickets": total,
         "open_tickets": open_tickets,
@@ -217,7 +275,10 @@ def _build_dashboard_metrics(client_id=None, month=None):
         "sla_compliance_percent": compliance_pct,
         "ytd_compliance_percent": ytd_compliance,
         "avg_resolution_minutes": avg_resolution_minutes,
-        "analyst_stats": dict(analyst_stats),
+        "analyst_stats": dict(analyst_map),
+        "analyst_leaderboard": analyst_leaderboard,
+        "client_health": client_health,
+        "recent_activity": recent_activity,
         "sla_status_distribution": {
             "Within SLA": within_sla,
             "Near Breach": near_breach,
@@ -239,7 +300,6 @@ def _build_dashboard_metrics(client_id=None, month=None):
         "available_months": available_months,
         "region_stats": region_stats,
     }
-
 
 
 @dashboard_bp.route("/dashboard")
@@ -267,3 +327,124 @@ def metrics_json():
     client_id = request.args.get("client_id", type=int)
     month = request.args.get("month", type=str)
     return jsonify(_build_dashboard_metrics(client_id=client_id, month=month))
+
+
+@dashboard_bp.route("/dashboard/export")
+@login_required
+@permission_required("view_dashboard")
+def export():
+    """Exports current dashboard metrics as Excel (.xlsx) or PDF (.pdf)."""
+    export_format = request.args.get("format", "excel").lower()
+    client_id = request.args.get("client_id", type=int)
+    month = request.args.get("month", type=str)
+
+    metrics = _build_dashboard_metrics(client_id=client_id, month=month)
+    filename_base = f"SLA_Dashboard_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}"
+
+    if export_format == "excel":
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            # Sheet 1: Summary Metrics
+            summary_df = pd.DataFrame([
+                {"Metric": "SLA Compliance Rate", "Value": f"{metrics['sla_compliance_percent']}%"},
+                {"Metric": "Year to Date SLA", "Value": f"{metrics['ytd_compliance_percent']}%"},
+                {"Metric": "Total Received Tickets", "Value": metrics["total_tickets"]},
+                {"Metric": "Open Tickets", "Value": metrics["open_tickets"]},
+                {"Metric": "Resolved Tickets", "Value": metrics["closed_tickets"]},
+                {"Metric": "Within SLA", "Value": metrics["within_sla"]},
+                {"Metric": "Near Breach", "Value": metrics["near_breach"]},
+                {"Metric": "Breached", "Value": metrics["breached"]},
+                {"Metric": "Avg Resolution Time (min)", "Value": metrics["avg_resolution_minutes"]},
+            ])
+            summary_df.to_excel(writer, sheet_name="Summary KPIs", index=False)
+
+            # Sheet 2: Client Health
+            if metrics["client_health"]:
+                pd.DataFrame(metrics["client_health"]).to_excel(writer, sheet_name="Client Health", index=False)
+
+            # Sheet 3: Analyst Performance
+            if metrics["analyst_leaderboard"]:
+                pd.DataFrame(metrics["analyst_leaderboard"]).to_excel(writer, sheet_name="Analyst Performance", index=False)
+
+            # Sheet 4: Top Issues
+            if metrics["top_issues"]:
+                pd.DataFrame(metrics["top_issues"]).to_excel(writer, sheet_name="Top Issues", index=False)
+
+        output.seek(0)
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=f"{filename_base}.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+    elif export_format == "pdf":
+        output = io.BytesIO()
+        doc = SimpleDocTemplate(
+            output,
+            pagesize=landscape(A4),
+            rightMargin=1.5 * 10,
+            leftMargin=1.5 * 10,
+            topMargin=1.5 * 10,
+            bottomMargin=1.5 * 10
+        )
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            "TitleStyle",
+            parent=styles["Title"],
+            fontName="Helvetica-Bold",
+            fontSize=18,
+            textColor=colors.HexColor("#1a2980"),
+            alignment=0,
+            spaceAfter=15,
+        )
+
+        elements = []
+        elements.append(Paragraph("Service Level Management — Dashboard Summary", title_style))
+        elements.append(Spacer(1, 10))
+
+        # KPI summary table
+        kpi_data = [
+            ["Metric", "Value", "Metric", "Value"],
+            ["SLA Compliance Rate", f"{metrics['sla_compliance_percent']}%", "Total Received Tickets", str(metrics["total_tickets"])],
+            ["YTD SLA Compliance", f"{metrics['ytd_compliance_percent']}%", "Open Tickets", str(metrics["open_tickets"])],
+            ["Within SLA", str(metrics["within_sla"]), "Breached Tickets", str(metrics["breached"])],
+            ["Near Breach", str(metrics["near_breach"]), "Avg Resolution (min)", str(metrics["avg_resolution_minutes"])],
+        ]
+
+        t = Table(kpi_data, colWidths=[150, 100, 150, 100])
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#1a2980")),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#d5dde8")),
+        ]))
+        elements.append(t)
+        elements.append(Spacer(1, 15))
+
+        # Client Health table
+        if metrics["client_health"]:
+            elements.append(Paragraph("<b>Client Health Summary</b>", styles["Heading2"]))
+            elements.append(Spacer(1, 6))
+            ch_data = [["Client", "City", "Total", "Open", "Breached", "Compliance"]]
+            for ch in metrics["client_health"]:
+                ch_data.append([ch["name"], ch["city"], str(ch["total"]), str(ch["open"]), str(ch["breached"]), f"{ch['compliance']}%"])
+            ch_table = Table(ch_data, colWidths=[140, 100, 70, 70, 70, 90])
+            ch_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#26418f")),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#d5dde8")),
+            ]))
+            elements.append(ch_table)
+
+        doc.build(elements)
+        output.seek(0)
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=f"{filename_base}.pdf",
+            mimetype="application/pdf"
+        )
+
+    return jsonify({"error": "Unsupported export format"}), 400

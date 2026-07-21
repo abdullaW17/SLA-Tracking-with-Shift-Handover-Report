@@ -193,6 +193,20 @@ def send_ticket_email_manually(app, ticket):
     
     success = _send_email(app, subject, body, recipients)
     if success:
+        try:
+            from models import ActivityLog
+            from models.activity_log import EVENT_EMAIL_SENT
+            log = ActivityLog(
+                event_type=EVENT_EMAIL_SENT,
+                ticket_id=ticket.id,
+                client_id=ticket.client_id,
+                description=f"Manual email alert sent for ticket {ticket.external_id}",
+                actor="System/Operator"
+            )
+            db.session.add(log)
+            db.session.commit()
+        except Exception:
+            pass
         return True, f"Manual email successfully sent to: {', '.join(recipients)}"
     else:
         return False, "Failed to send email. Please check SMTP server settings and logs."

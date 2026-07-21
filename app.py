@@ -57,6 +57,12 @@ def create_app(config_name=None):
                 db.session.rollback()
                 logging.getLogger(__name__).error(f"Failed to migrate database columns: {e}")
 
+        # Ensure all models are created (e.g. activity_logs table)
+        try:
+            db.create_all()
+        except Exception as e:
+            logging.getLogger(__name__).error(f"db.create_all failed: {e}")
+
     # --- Models (import after db.init_app so metadata registers correctly) ---
     from models import User  # noqa: F401  (registers all models via models/__init__.py)
 
@@ -71,6 +77,8 @@ def create_app(config_name=None):
     from routes.sla_rule_routes import sla_rule_bp
     from routes.report_routes import report_bp
     from routes.settings_routes import settings_bp
+    from routes.api_routes import api_bp
+    from routes.handover_routes import handover_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -78,6 +86,8 @@ def create_app(config_name=None):
     app.register_blueprint(sla_rule_bp)
     app.register_blueprint(report_bp)
     app.register_blueprint(settings_bp)
+    app.register_blueprint(api_bp)
+    app.register_blueprint(handover_bp)
 
     @app.route("/")
     def root():
