@@ -124,3 +124,20 @@ def trigger_recalculate():
     result = recalculate_all_open_tickets()
     flash(f"Recalculated SLA for {result['recalculated_count']} ticket(s).", "success")
     return redirect(url_for("tickets.ticket_list"))
+
+
+@ticket_bp.route("/tickets/<int:ticket_id>/send-mail", methods=["POST"])
+@login_required
+@permission_required("view_tickets")
+def send_mail_directly(ticket_id):
+    ticket = Ticket.query.get_or_404(ticket_id)
+    from services.email_service import send_ticket_email_manually
+    from flask import current_app
+
+    success, message = send_ticket_email_manually(current_app, ticket)
+    if success:
+        flash(message, "success")
+    else:
+        flash(message, "danger")
+
+    return redirect(url_for("tickets.ticket_detail", ticket_id=ticket.id))

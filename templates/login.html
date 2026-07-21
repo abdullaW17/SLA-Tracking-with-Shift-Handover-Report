@@ -34,18 +34,41 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Password</label>
-                    <input type="password" name="password" class="form-control" required>
+                    <div class="input-group">
+                        <input type="password" name="password" id="passwordInput" class="form-control" required>
+                        <button class="btn btn-outline-secondary" type="button" id="togglePasswordBtn" style="border-color: var(--border-color);">
+                            <i class="bi bi-eye" id="togglePasswordIcon"></i>
+                        </button>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary w-100">Sign In</button>
             </form>
 
+            <!--
             <hr>
             <p class="small text-muted mb-0">
                 Demo accounts (after running <code>seed_data.py</code>):<br>
                 admin / Admin123! &middot; manager / Manager123! &middot; viewer / Viewer123!
             </p>
+            -->
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const toggleBtn = document.getElementById("togglePasswordBtn");
+    const passwordInput = document.getElementById("passwordInput");
+    const toggleIcon = document.getElementById("togglePasswordIcon");
+
+    if (toggleBtn && passwordInput && toggleIcon) {
+        toggleBtn.addEventListener("click", function() {
+            const isPassword = passwordInput.type === "password";
+            passwordInput.type = isPassword ? "text" : "password";
+            toggleIcon.className = isPassword ? "bi bi-eye-slash" : "bi bi-eye";
+        });
+    }
+});
+</script>
 </body>
 </html>

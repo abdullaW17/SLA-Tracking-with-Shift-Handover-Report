@@ -39,10 +39,16 @@
                 <tr><th>Resolution SLA Status</th><td>{{ ticket.resolution_sla_status or '-' }}</td></tr>
                 <tr><th>Breach Duration</th><td>{% if ticket.breach_duration_minutes and ticket.breach_duration_minutes > 0 %}<span class="text-danger fw-bold">{{ ticket.breach_duration_minutes }} minutes</span>{% else %}{{ ticket.breach_duration_minutes or 0 }} minutes{% endif %}</td></tr>
             </table>
-            <form method="POST" action="{{ url_for('tickets.trigger_recalculate') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-repeat"></i> Recalculate SLA for all open tickets</button>
-            </form>
+            <div class="d-grid gap-2">
+                <form method="POST" action="{{ url_for('tickets.trigger_recalculate') }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-outline-primary btn-sm w-100"><i class="bi bi-arrow-repeat"></i> Recalculate SLA for all open tickets</button>
+                </form>
+                <form method="POST" action="{{ url_for('tickets.send_mail_directly', ticket_id=ticket.id) }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-primary btn-sm w-100"><i class="bi bi-envelope"></i> Send Mail Directly</button>
+                </form>
+            </div>
         </div>
     </div>
 </div>

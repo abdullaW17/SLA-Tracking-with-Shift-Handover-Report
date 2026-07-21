@@ -32,10 +32,28 @@ def settings_page():
         for key, _label in SETTINGS_KEYS:
             value = request.form.get(key, "")
             Setting.set(key, value)
+        
+        # Save business hours settings
+        bh_start = request.form.get("business_hours_start", "09:00").strip()
+        bh_end = request.form.get("business_hours_end", "17:00").strip()
+        bh_days_list = request.form.getlist("business_hours_days")
+        bh_days = ",".join(bh_days_list) if bh_days_list else "0,1,2,3,4"
+        
+        Setting.set("business_hours_start", bh_start)
+        Setting.set("business_hours_end", bh_end)
+        Setting.set("business_hours_days", bh_days)
+        
         flash("Settings saved. Note: sync interval changes take effect after restart.", "success")
         return redirect(url_for("settings.settings_page"))
 
     current_values = {key: Setting.get(key, "") for key, _label in SETTINGS_KEYS}
+    
+    # Retrieve current business hours settings
+    bh_start = Setting.get("business_hours_start", "09:00")
+    bh_end = Setting.get("business_hours_end", "17:00")
+    bh_days_str = Setting.get("business_hours_days", "0,1,2,3,4")
+    bh_days = [int(x) for x in bh_days_str.split(",") if x.strip() != ""]
+
     field_mappings = FieldMapping.query.filter_by(source_system="dfir_iris", client_id=None).all()
     clients = Client.query.order_by(Client.name).all()
 
@@ -46,6 +64,9 @@ def settings_page():
         field_mappings=field_mappings,
         iris_configured=bool(current_app.config.get("IRIS_API_KEY")),
         clients=clients,
+        bh_start=bh_start,
+        bh_end=bh_end,
+        bh_days=bh_days,
     )
 
 
@@ -107,6 +128,11 @@ def client_create():
     iris_customer_id = request.form.get("iris_customer_id", "").strip() or None
     client_timezone = request.form.get("timezone", "Asia/Karachi").strip()
     city = request.form.get("city", "Islamabad").strip()
+    
+    business_hours_start = request.form.get("business_hours_start", "").strip() or None
+    business_hours_end = request.form.get("business_hours_end", "").strip() or None
+    days_list = request.form.getlist("business_hours_days")
+    business_hours_days = ",".join(days_list) if days_list else None
 
     if not name:
         flash("Client name is required.", "danger")
@@ -121,6 +147,9 @@ def client_create():
         iris_customer_id=iris_customer_id,
         timezone=client_timezone,
         city=city,
+        business_hours_start=business_hours_start,
+        business_hours_end=business_hours_end,
+        business_hours_days=business_hours_days,
     )
     db.session.add(client)
     db.session.commit()
@@ -137,6 +166,12 @@ def client_edit(client_id):
     client.iris_customer_id = request.form.get("iris_customer_id", "").strip() or None
     client.timezone = request.form.get("timezone", "Asia/Karachi").strip()
     client.city = request.form.get("city", client.city or "Islamabad").strip()
+    
+    client.business_hours_start = request.form.get("business_hours_start", "").strip() or None
+    client.business_hours_end = request.form.get("business_hours_end", "").strip() or None
+    days_list = request.form.getlist("business_hours_days")
+    client.business_hours_days = ",".join(days_list) if days_list else None
+
     db.session.commit()
     flash(f"Client '{client.name}' updated.", "success")
     return redirect(url_for("settings.client_list"))
@@ -155,3 +190,30 @@ def client_toggle(client_id):
         "info",
     )
     return redirect(url_for("settings.client_list"))
+
+
+@settings_bp.route("/settings/send-test-email", methods=["POST"])
+@login_required
+@permission_required("manage_iris_settings")
+def send_test_email():
+    from services.email_service import _send_email
+    from flask import current_app
+    from models import User
+    
+    recipients = [u.email for u in User.query.all() if u.email]
+    if not recipients:
+        flash("No users with email addresses found to send test to.", "danger")
+        return redirect(url_for("settings.settings_page"))
+        
+    subject = "SLA Tracker - Test Email Notification"
+    body = """
+    <h3>SLA Tracker Test Connection</h3>
+    <p>This is a test email sent from the Automated SLA Tracker to verify SMTP configuration.</p>
+    """
+    success = _send_email(current_app, subject, body, recipients)
+    if success:
+        flash(f"Test email sent successfully to: {', '.join(recipients)}", "success")
+    else:
+        flash("Failed to send test email. Check SMTP settings and logs.", "danger")
+        
+    return redirect(url_for("settings.settings_page"))

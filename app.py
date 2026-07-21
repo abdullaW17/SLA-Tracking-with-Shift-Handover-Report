@@ -41,6 +41,22 @@ def create_app(config_name=None):
     migrate.init_app(app, db)
     csrf.init_app(app)  # Gap #9: CSRF protection
 
+    # Dynamic migration check to add custom business hours columns to clients table if missing
+    with app.app_context():
+        try:
+            db.session.execute(db.text("SELECT business_hours_start FROM clients LIMIT 1"))
+        except Exception:
+            db.session.rollback()
+            try:
+                db.session.execute(db.text("ALTER TABLE clients ADD COLUMN business_hours_start VARCHAR(10)"))
+                db.session.execute(db.text("ALTER TABLE clients ADD COLUMN business_hours_end VARCHAR(10)"))
+                db.session.execute(db.text("ALTER TABLE clients ADD COLUMN business_hours_days VARCHAR(50)"))
+                db.session.commit()
+                logging.getLogger(__name__).info("Migrated database: added business hours columns to clients table")
+            except Exception as e:
+                db.session.rollback()
+                logging.getLogger(__name__).error(f"Failed to migrate database columns: {e}")
+
     # --- Models (import after db.init_app so metadata registers correctly) ---
     from models import User  # noqa: F401  (registers all models via models/__init__.py)
 

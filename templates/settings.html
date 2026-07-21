@@ -19,13 +19,64 @@
                 {% for key, label in settings_keys %}
                 <div class="mb-3"><label class="form-label">{{ label }}</label><input type="text" name="{{ key }}" class="form-control" value="{{ current_values.get(key, '') }}"></div>
                 {% endfor %}
+                
+                <hr>
+                <h6><i class="bi bi-calendar3 me-1"></i> Global Business Hours</h6>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <label class="form-label small text-muted">Start Time</label>
+                        <input type="time" name="business_hours_start" class="form-control" value="{{ bh_start or '09:00' }}">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small text-muted">End Time</label>
+                        <input type="time" name="business_hours_end" class="form-control" value="{{ bh_end or '17:00' }}">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label d-block small text-muted">Working Days</label>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" name="business_hours_days" id="global_day_0" value="0" {% if 0 in bh_days %}checked{% endif %}>
+                        <label class="form-check-label" for="global_day_0">Mon</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" name="business_hours_days" id="global_day_1" value="1" {% if 1 in bh_days %}checked{% endif %}>
+                        <label class="form-check-label" for="global_day_1">Tue</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" name="business_hours_days" id="global_day_2" value="2" {% if 2 in bh_days %}checked{% endif %}>
+                        <label class="form-check-label" for="global_day_2">Wed</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" name="business_hours_days" id="global_day_3" value="3" {% if 3 in bh_days %}checked{% endif %}>
+                        <label class="form-check-label" for="global_day_3">Thu</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" name="business_hours_days" id="global_day_4" value="4" {% if 4 in bh_days %}checked{% endif %}>
+                        <label class="form-check-label" for="global_day_4">Fri</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" name="business_hours_days" id="global_day_5" value="5" {% if 5 in bh_days %}checked{% endif %}>
+                        <label class="form-check-label" for="global_day_5">Sat</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" name="business_hours_days" id="global_day_6" value="6" {% if 6 in bh_days %}checked{% endif %}>
+                        <label class="form-check-label" for="global_day_6">Sun</label>
+                    </div>
+                </div>
+                
                 <button type="submit" class="btn btn-primary btn-sm">Save Settings</button>
             </form>
             <hr>
-            <form method="POST" action="{{ url_for('settings.test_iris_connection') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-plug"></i> Test IRIS Connection</button>
-            </form>
+            <div class="d-flex gap-2">
+                <form method="POST" action="{{ url_for('settings.test_iris_connection') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-plug"></i> Test IRIS Connection</button>
+                </form>
+                <form method="POST" action="{{ url_for('settings.send_test_email') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-success btn-sm"><i class="bi bi-envelope"></i> Send Test Email</button>
+                </form>
+            </div>
         </div>
     </div>
     <div class="col-lg-6">

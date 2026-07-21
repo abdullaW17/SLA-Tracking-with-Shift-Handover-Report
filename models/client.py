@@ -33,6 +33,11 @@ class Client(db.Model):
     # Stored as an IANA tz name (e.g. "Asia/Karachi", "America/New_York").
     timezone = db.Column(db.String(50), nullable=False, default="Asia/Karachi")
 
+    # Custom business hours parameters (None defaults to global settings)
+    business_hours_start = db.Column(db.String(10), nullable=True)
+    business_hours_end = db.Column(db.String(10), nullable=True)
+    business_hours_days = db.Column(db.String(50), nullable=True)
+
     is_active = db.Column(db.Boolean, default=True, nullable=False)
 
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))

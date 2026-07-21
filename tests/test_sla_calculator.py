@@ -16,7 +16,7 @@ Tests cover:
 
 from datetime import datetime, timedelta, timezone
 
-from models import Ticket
+from models import Ticket, Client
 from services.sla_calculator import (
     find_matching_sla_rule,
     calculate_deadlines,
@@ -167,6 +167,109 @@ class TestDeadlineMathBusinessHours:
             # That's 15:00 → 17:00 today = 120 min exactly, so deadline should be
             # at end of business day (17:00 ET = 21:00 UTC)
             assert resolution_dl > created  # at least it's in the future
+
+    def test_global_custom_business_hours(self, app, db, sample_clients):
+        from models.setting import Setting
+        from services.business_hours import get_business_hours
+
+        with app.app_context():
+            # Set global business hours: 10:00 - 15:00, Mon-Thu (0,1,2,3)
+            Setting.set("business_hours_start", "10:00")
+            Setting.set("business_hours_end", "15:00")
+            Setting.set("business_hours_days", "0,1,2,3")
+
+            c1_exp, _ = sample_clients
+            c1 = Client.query.get(c1_exp.id)
+
+            # c1 timezone is UTC
+            # Create a ticket on Mon at 04:00 UTC.
+            # Business hours start at 10:00 UTC, so deadline for 120 mins should start from 10:00 and end at 12:00 UTC.
+            created = datetime(2026, 7, 6, 4, 0, 0, tzinfo=timezone.utc)
+
+            # Validate get_business_hours helper resolves global settings
+            start, end, days = get_business_hours(c1)
+            assert start.hour == 10
+            assert end.hour == 15
+            assert days == {0, 1, 2, 3}
+
+            t = Ticket(
+                client_id=c1.id, external_id="T-601", source_system="test",
+                severity="Critical",
+                created_at_source=created,
+            )
+            db.session.add(t)
+            db.session.flush()
+
+            # Create an SLA rule matching Critical with business_hours_only=True
+            from models.sla_rule import SLARule, SLARuleCondition
+            rule = SLARule(
+                client_id=c1.id, rule_name="Custom Biz Hours Rule",
+                priority=1, business_hours_only=True,
+                resolution_sla_minutes=120, is_active=True
+            )
+            db.session.add(rule)
+            db.session.flush()
+            cond = SLARuleCondition(sla_rule_id=rule.id, field_name="severity", field_value="Critical")
+            db.session.add(cond)
+            db.session.commit()
+
+            _, resolution_dl = calculate_deadlines(t, rule)
+            assert resolution_dl is not None
+            # Monday 10:00 UTC + 120 mins = Monday 12:00 UTC
+            expected_dl = datetime(2026, 7, 6, 12, 0, 0, tzinfo=timezone.utc)
+            assert resolution_dl == expected_dl
+
+    def test_client_custom_business_hours_override(self, app, db, sample_clients):
+        from models.setting import Setting
+        from services.business_hours import get_business_hours
+
+        with app.app_context():
+            # Set global business hours: 10:00 - 15:00
+            Setting.set("business_hours_start", "10:00")
+            Setting.set("business_hours_end", "15:00")
+            Setting.set("business_hours_days", "0,1,2,3")
+
+            c1_exp, _ = sample_clients
+            c1 = Client.query.get(c1_exp.id)
+            # Set client specific override: 08:00 - 12:00, Mon-Fri (0,1,2,3,4)
+            c1.business_hours_start = "08:00"
+            c1.business_hours_end = "12:00"
+            c1.business_hours_days = "0,1,2,3,4"
+            db.session.commit()
+
+            # Resolve custom business hours
+            start, end, days = get_business_hours(c1)
+            assert start.hour == 8
+            assert end.hour == 12
+            assert days == {0, 1, 2, 3, 4}
+
+            created = datetime(2026, 7, 6, 3, 0, 0, tzinfo=timezone.utc) # Mon 03:00 UTC
+
+            t = Ticket(
+                client_id=c1.id, external_id="T-602", source_system="test",
+                severity="Critical",
+                created_at_source=created,
+            )
+            db.session.add(t)
+            db.session.flush()
+
+            from models.sla_rule import SLARule, SLARuleCondition
+            rule = SLARule(
+                client_id=c1.id, rule_name="Client Biz Hours Override Rule",
+                priority=1, business_hours_only=True,
+                resolution_sla_minutes=120, is_active=True
+            )
+            db.session.add(rule)
+            db.session.flush()
+            cond = SLARuleCondition(sla_rule_id=rule.id, field_name="severity", field_value="Critical")
+            db.session.add(cond)
+            db.session.commit()
+
+            _, resolution_dl = calculate_deadlines(t, rule)
+            assert resolution_dl is not None
+            # Mon 08:00 UTC + 120 mins = Mon 10:00 UTC
+            expected_dl = datetime(2026, 7, 6, 10, 0, 0, tzinfo=timezone.utc)
+            assert resolution_dl == expected_dl
 
 
 class TestPauseShiftsDeadline:

@@ -160,3 +160,39 @@ def send_daily_summary_email(app):
     </ul>
     """
     return _send_email(app, "Daily SLA Summary", body, _admin_and_manager_emails())
+
+
+def send_ticket_email_manually(app, ticket):
+    """Manually sends an SLA alert email for a specific ticket directly.
+    Bypasses the breach_notified / near_breach_notified database checks.
+    """
+    alert_type = ticket.sla_status or "Status Info"
+    escalation_email = None
+    if ticket.sla_rule and ticket.sla_rule.escalation_email:
+        escalation_email = ticket.sla_rule.escalation_email.strip()
+        
+    recipients = [escalation_email] if escalation_email else _admin_and_manager_emails()
+    
+    if not recipients:
+        return False, "No recipients found. Please configure an escalation email on the SLA rule or ensure Admin/Manager users have email addresses."
+        
+    subject = f"Manual SLA Alert: Ticket {ticket.external_id} is {alert_type}"
+    body = f"""
+    <h3>Manual SLA Alert (Direct Trigger)</h3>
+    <p>This email alert was manually dispatched for the following ticket:</p>
+    <table border="1" cellpadding="4" cellspacing="0" style="border-collapse: collapse; border: 1px solid #ddd;">
+      <tr style="background-color: #f2f2f2;"><th>Field</th><th>Details</th></tr>
+      <tr><td><strong>External ID</strong></td><td>{ticket.external_id}</td></tr>
+      <tr><td><strong>Title</strong></td><td>{ticket.title}</td></tr>
+      <tr><td><strong>SLA Status</strong></td><td><strong style="color:red;">{alert_type}</strong></td></tr>
+      <tr><td><strong>Assigned To</strong></td><td>{ticket.assigned_to or 'Unassigned'}</td></tr>
+      <tr><td><strong>Response Deadline</strong></td><td>{ticket.response_deadline or 'N/A'}</td></tr>
+      <tr><td><strong>Resolution Deadline</strong></td><td>{ticket.resolution_deadline or 'N/A'}</td></tr>
+    </table>
+    """
+    
+    success = _send_email(app, subject, body, recipients)
+    if success:
+        return True, f"Manual email successfully sent to: {', '.join(recipients)}"
+    else:
+        return False, "Failed to send email. Please check SMTP server settings and logs."

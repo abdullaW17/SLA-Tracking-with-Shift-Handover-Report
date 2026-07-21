@@ -67,11 +67,21 @@
           <div class="row condition-row align-items-end mb-3">
             <div class="col-md-5">
               <label class="form-label small text-muted">Field Name *</label>
-              <input type="text" name="cond_field_name[]" class="form-control" list="field_name_options" value="{{ cond.field_name }}" required>
+              <select name="cond_field_name[]" class="form-select cond-field-name-select" required>
+                <option value="">-- Select Field --</option>
+                <option value="severity" {% if cond.field_name == 'severity' %}selected{% endif %}>severity</option>
+                <option value="priority" {% if cond.field_name == 'priority' %}selected{% endif %}>priority</option>
+                <option value="criticality" {% if cond.field_name == 'criticality' %}selected{% endif %}>criticality</option>
+                <option value="status" {% if cond.field_name == 'status' %}selected{% endif %}>status</option>
+              </select>
             </div>
             <div class="col-md-5">
               <label class="form-label small text-muted">Field Value *</label>
-              <input type="text" name="cond_field_value[]" class="form-control" list="field_value_options" value="{{ cond.field_value }}" required>
+              <input type="hidden" name="cond_field_value[]" class="cond-field-value-hidden" value="{{ cond.field_value }}">
+              <select class="form-select cond-field-value-select" required>
+                <option value="">-- Select Value --</option>
+              </select>
+              <input type="text" class="form-control cond-field-value-custom mt-2 d-none" placeholder="Type custom value...">
             </div>
             <div class="col-md-2">
               <button type="button" class="btn btn-outline-danger w-100 remove-condition-btn">
@@ -85,11 +95,21 @@
           <div class="row condition-row align-items-end mb-3">
             <div class="col-md-5">
               <label class="form-label small text-muted">Field Name *</label>
-              <input type="text" name="cond_field_name[]" class="form-control" list="field_name_options" required placeholder="e.g. severity, priority, criticality">
+              <select name="cond_field_name[]" class="form-select cond-field-name-select" required>
+                <option value="">-- Select Field --</option>
+                <option value="severity">severity</option>
+                <option value="priority">priority</option>
+                <option value="criticality">criticality</option>
+                <option value="status">status</option>
+              </select>
             </div>
             <div class="col-md-5">
               <label class="form-label small text-muted">Field Value *</label>
-              <input type="text" name="cond_field_value[]" class="form-control" list="field_value_options" required placeholder="e.g. Critical, Low">
+              <input type="hidden" name="cond_field_value[]" class="cond-field-value-hidden">
+              <select class="form-select cond-field-value-select" required disabled>
+                <option value="">-- Select Value --</option>
+              </select>
+              <input type="text" class="form-control cond-field-value-custom mt-2 d-none" placeholder="Type custom value...">
             </div>
             <div class="col-md-2">
               <button type="button" class="btn btn-outline-danger w-100 remove-condition-btn">
@@ -175,27 +195,95 @@
   </form>
 </div>
 
-<!-- Datalist inputs shared by dynamic condition rows -->
-<datalist id="field_name_options">
-  <option value="severity">severity</option>
-  <option value="priority">priority</option>
-  <option value="criticality">criticality</option>
-  <option value="status">status</option>
-</datalist>
-
-<datalist id="field_value_options">
-  <!-- Dynamic IRIS Case Classifications -->
-  {% if classifications %}
-    {% for c in classifications %}
-      <option value="{{ c.name }}">{{ c.name_expanded or c.name }}</option>
-    {% endfor %}
-  {% endif %}
-</datalist>
+<!-- Datalist inputs are no longer needed as we use custom dropdown selects -->
 
 <script>
+const fieldOptions = {{ field_options | tojson if field_options else '{}' }};
+
+function initConditionRow(row) {
+    const fieldNameSelect = row.querySelector(".cond-field-name-select");
+    const fieldValueSelect = row.querySelector(".cond-field-value-select");
+    const fieldValueHidden = row.querySelector(".cond-field-value-hidden");
+    const fieldValueCustom = row.querySelector(".cond-field-value-custom");
+
+    function updateValueOptions() {
+        const fieldName = fieldNameSelect.value;
+        const currentVal = fieldValueHidden.value;
+
+        // Clear existing options
+        fieldValueSelect.innerHTML = '<option value="">-- Select Value --</option>';
+
+        if (!fieldName) {
+            fieldValueSelect.disabled = true;
+            fieldValueCustom.classList.add("d-none");
+            return;
+        }
+        fieldValueSelect.disabled = false;
+
+        const options = fieldOptions[fieldName] || [];
+        let valFound = false;
+
+        options.forEach(opt => {
+            const option = document.createElement("option");
+            option.value = opt;
+            option.textContent = opt;
+            if (opt === currentVal) {
+                option.selected = true;
+                valFound = true;
+            }
+            fieldValueSelect.appendChild(option);
+        });
+
+        // Add custom option
+        const customOpt = document.createElement("option");
+        customOpt.value = "__custom__";
+        customOpt.textContent = "-- Other (Type custom value) --";
+        if (currentVal && !valFound) {
+            customOpt.selected = true;
+            fieldValueCustom.classList.remove("d-none");
+            fieldValueCustom.value = currentVal;
+            fieldValueCustom.required = true;
+        } else {
+            fieldValueCustom.classList.add("d-none");
+            fieldValueCustom.required = false;
+        }
+        fieldValueSelect.appendChild(customOpt);
+    }
+
+    fieldNameSelect.addEventListener("change", function() {
+        fieldValueHidden.value = "";
+        fieldValueCustom.value = "";
+        updateValueOptions();
+    });
+
+    fieldValueSelect.addEventListener("change", function() {
+        const val = fieldValueSelect.value;
+        if (val === "__custom__") {
+            fieldValueCustom.classList.remove("d-none");
+            fieldValueCustom.required = true;
+            fieldValueHidden.value = fieldValueCustom.value;
+            fieldValueCustom.focus();
+        } else {
+            fieldValueCustom.classList.add("d-none");
+            fieldValueCustom.required = false;
+            fieldValueHidden.value = val;
+        }
+    });
+
+    fieldValueCustom.addEventListener("input", function() {
+        fieldValueHidden.value = fieldValueCustom.value;
+    });
+
+    // Run initial population
+    updateValueOptions();
+}
+
 document.addEventListener("DOMContentLoaded", function() {
     const container = document.getElementById("conditions-container");
     const addBtn = document.getElementById("add-condition-btn");
+
+    // Initialize existing rows
+    container.querySelectorAll(".condition-row").forEach(initConditionRow);
 
     // Add condition row
     addBtn.addEventListener("click", function() {
@@ -204,11 +292,21 @@ document.addEventListener("DOMContentLoaded", function() {
         row.innerHTML = `
             <div class="col-md-5">
               <label class="form-label small text-muted">Field Name *</label>
-              <input type="text" name="cond_field_name[]" class="form-control" list="field_name_options" required placeholder="e.g. severity, priority, criticality">
+              <select name="cond_field_name[]" class="form-select cond-field-name-select" required>
+                <option value="">-- Select Field --</option>
+                <option value="severity">severity</option>
+                <option value="priority">priority</option>
+                <option value="criticality">criticality</option>
+                <option value="status">status</option>
+              </select>
             </div>
             <div class="col-md-5">
               <label class="form-label small text-muted">Field Value *</label>
-              <input type="text" name="cond_field_value[]" class="form-control" list="field_value_options" required placeholder="e.g. Critical, Low">
+              <input type="hidden" name="cond_field_value[]" class="cond-field-value-hidden">
+              <select class="form-select cond-field-value-select" required disabled>
+                <option value="">-- Select Value --</option>
+              </select>
+              <input type="text" class="form-control cond-field-value-custom mt-2 d-none" placeholder="Type custom value...">
             </div>
             <div class="col-md-2">
               <button type="button" class="btn btn-outline-danger w-100 remove-condition-btn">
@@ -217,6 +315,7 @@ document.addEventListener("DOMContentLoaded", function() {
             </div>
         `;
         container.appendChild(row);
+        initConditionRow(row);
     });
 
     // Remove condition row (event delegation)

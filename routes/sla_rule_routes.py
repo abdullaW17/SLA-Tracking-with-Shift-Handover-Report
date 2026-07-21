@@ -54,6 +54,30 @@ def _form_to_rule_fields(form):
     )
 
 
+def _get_field_options(classifications):
+    distinct = lambda col: [row[0] for row in db.session.query(col).distinct() if row[0]]
+    options = {
+        "severity": distinct(Ticket.severity),
+        "priority": distinct(Ticket.priority),
+        "criticality": distinct(Ticket.criticality),
+        "status": distinct(Ticket.status)
+    }
+    
+    # Merge classifications from IRIS into severity list
+    severities = set(options["severity"])
+    if classifications:
+        for c in classifications:
+            if c.get("name"):
+                severities.add(c.get("name"))
+            if c.get("name_expanded"):
+                severities.add(c.get("name_expanded"))
+    options["severity"] = sorted(list(severities))
+    options["priority"] = sorted(list(set(options["priority"])))
+    options["criticality"] = sorted(list(set(options["criticality"])))
+    options["status"] = sorted(list(set(options["status"])))
+    return options
+
+
 @sla_rule_bp.route("/sla-rules/create", methods=["GET", "POST"])
 @login_required
 @permission_required("manage_sla_rules")
@@ -61,6 +85,7 @@ def rule_create():
     clients = Client.query.filter_by(is_active=True).order_by(Client.name).all()
     from services.iris_api_service import fetch_classifications
     classifications = fetch_classifications()
+    field_options = _get_field_options(classifications)
 
     if request.method == "POST":
         fields = _form_to_rule_fields(request.form)
@@ -82,16 +107,16 @@ def rule_create():
         # Validations
         if not fields["rule_name"]:
             flash("Rule name is required.", "danger")
-            return render_template("sla_rule_form.html", rule=fields, clients=clients, classifications=classifications)
+            return render_template("sla_rule_form.html", rule=fields, clients=clients, classifications=classifications, field_options=field_options)
         if not fields["client_id"]:
             flash("A client must be selected.", "danger")
-            return render_template("sla_rule_form.html", rule=fields, clients=clients, classifications=classifications)
+            return render_template("sla_rule_form.html", rule=fields, clients=clients, classifications=classifications, field_options=field_options)
         if not conditions_data:
             flash("At least one matching condition is required.", "danger")
-            return render_template("sla_rule_form.html", rule=fields, clients=clients, classifications=classifications)
+            return render_template("sla_rule_form.html", rule=fields, clients=clients, classifications=classifications, field_options=field_options)
         if fields["response_sla_minutes"] is not None and fields["response_sla_minutes"] >= fields["resolution_sla_minutes"]:
             flash("Response SLA minutes must be less than Resolution SLA minutes.", "danger")
-            return render_template("sla_rule_form.html", rule=fields, clients=clients, classifications=classifications)
+            return render_template("sla_rule_form.html", rule=fields, clients=clients, classifications=classifications, field_options=field_options)
 
         # Remove temporary conditions list to avoid super().__init__ trying to set it directly
         temp_conditions = fields.pop("conditions", None)
@@ -108,7 +133,7 @@ def rule_create():
         flash(f"SLA rule '{rule.rule_name}' created.", "success")
         return redirect(url_for("sla_rules.rule_list"))
 
-    return render_template("sla_rule_form.html", rule=None, clients=clients, classifications=classifications)
+    return render_template("sla_rule_form.html", rule=None, clients=clients, classifications=classifications, field_options=field_options)
 
 
 @sla_rule_bp.route("/sla-rules/<int:rule_id>/edit", methods=["GET", "POST"])
@@ -119,6 +144,7 @@ def rule_edit(rule_id):
     clients = Client.query.filter_by(is_active=True).order_by(Client.name).all()
     from services.iris_api_service import fetch_classifications
     classifications = fetch_classifications()
+    field_options = _get_field_options(classifications)
 
     if request.method == "POST":
         fields = _form_to_rule_fields(request.form)
@@ -137,16 +163,16 @@ def rule_edit(rule_id):
         # Validations
         if not fields["rule_name"]:
             flash("Rule name is required.", "danger")
-            return render_template("sla_rule_form.html", rule=rule, clients=clients, classifications=classifications)
+            return render_template("sla_rule_form.html", rule=rule, clients=clients, classifications=classifications, field_options=field_options)
         if not fields["client_id"]:
             flash("A client must be selected.", "danger")
-            return render_template("sla_rule_form.html", rule=rule, clients=clients, classifications=classifications)
+            return render_template("sla_rule_form.html", rule=rule, clients=clients, classifications=classifications, field_options=field_options)
         if not conditions_data:
             flash("At least one matching condition is required.", "danger")
-            return render_template("sla_rule_form.html", rule=rule, clients=clients, classifications=classifications)
+            return render_template("sla_rule_form.html", rule=rule, clients=clients, classifications=classifications, field_options=field_options)
         if fields["response_sla_minutes"] is not None and fields["response_sla_minutes"] >= fields["resolution_sla_minutes"]:
             flash("Response SLA minutes must be less than Resolution SLA minutes.", "danger")
-            return render_template("sla_rule_form.html", rule=rule, clients=clients, classifications=classifications)
+            return render_template("sla_rule_form.html", rule=rule, clients=clients, classifications=classifications, field_options=field_options)
 
         for key, value in fields.items():
             setattr(rule, key, value)
@@ -162,7 +188,7 @@ def rule_edit(rule_id):
         flash(f"SLA rule '{rule.rule_name}' updated.", "success")
         return redirect(url_for("sla_rules.rule_list"))
 
-    return render_template("sla_rule_form.html", rule=rule, clients=clients, classifications=classifications)
+    return render_template("sla_rule_form.html", rule=rule, clients=clients, classifications=classifications, field_options=field_options)
 
 
 @sla_rule_bp.route("/sla-rules/<int:rule_id>/delete", methods=["POST"])
