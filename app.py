@@ -41,8 +41,17 @@ def create_app(config_name=None):
     migrate.init_app(app, db)
     csrf.init_app(app)  # Gap #9: CSRF protection
 
+    # --- Models (import after db.init_app so metadata registers correctly) ---
+    import models  # noqa: F401  (registers all models via models/__init__.py)
+
     # Dynamic migration check to add custom business hours columns to clients table if missing
     with app.app_context():
+        # Ensure all model tables exist in SQLite (e.g. activity_logs table)
+        try:
+            db.create_all()
+        except Exception as e:
+            logging.getLogger(__name__).error(f"db.create_all failed: {e}")
+
         try:
             db.session.execute(db.text("SELECT business_hours_start FROM clients LIMIT 1"))
         except Exception:
@@ -56,15 +65,6 @@ def create_app(config_name=None):
             except Exception as e:
                 db.session.rollback()
                 logging.getLogger(__name__).error(f"Failed to migrate database columns: {e}")
-
-        # Ensure all models are created (e.g. activity_logs table)
-        try:
-            db.create_all()
-        except Exception as e:
-            logging.getLogger(__name__).error(f"db.create_all failed: {e}")
-
-    # --- Models (import after db.init_app so metadata registers correctly) ---
-    from models import User  # noqa: F401  (registers all models via models/__init__.py)
 
     @login_manager.user_loader
     def load_user(user_id):
