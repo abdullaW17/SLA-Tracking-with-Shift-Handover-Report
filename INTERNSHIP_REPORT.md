@@ -57,7 +57,7 @@
    - Centralized permission matrix in `ROLE_PERMISSIONS` dict
    - `@role_required()` and `@permission_required()` decorators created in `routes/decorators.py`
 
-5. **Seed Data Script (`seed_data.py`)**
+5. **Database Seeder (`flask seed` / `scripts/seed_data.py`)**
    - Seeds 3 demo clients (Acme Corp, Globex Industries, Initech) with different timezones
    - Creates 3 demo users (admin, manager, viewer) with hashed passwords
    - Seeds SLA rules across 3 different taxonomies (severity-based, priority-based, criticality-based)
@@ -286,10 +286,11 @@
    - Inline docstrings on every module, class, and function explaining design decisions
    - "Gap #N" comments throughout code referencing specific design improvements
 
-5. **Utility Scripts**
-   - `seed_data.py` — comprehensive database seeder (clients, users, mappings, rules, tickets)
-   - `clear_seed_data.py` — clears all seeded data for fresh start
-   - `fix_field_mappings.py` — utility to repair/update field mappings
+5. **Utility Scripts & CLI Commands (`cli.py`, `scripts/`)**
+   - `cli.py` — custom Flask CLI command interface (`flask seed`, `flask clear-seed`, `flask fix-mappings`)
+   - `scripts/seed_data.py` — standalone database seeder script
+   - `scripts/clear_seed_data.py` — standalone script to clear seeded data
+   - `scripts/fix_field_mappings.py` — standalone utility script to repair/update field mappings
 
 ### Challenges Faced
 
@@ -562,8 +563,12 @@ automated-sla-tracker/
 ├── app.py                          # App factory + entry point
 ├── config.py                       # Environment-driven config (Dev/Prod/Test)
 ├── extensions.py                   # Shared Flask extensions (avoids circular imports)
-├── seed_data.py                    # Database initialization + demo data
+├── cli.py                          # Custom Flask CLI commands (flask seed, clear-seed, etc)
 ├── requirements.txt                # Python dependencies (16 packages)
+├── scripts/                        # Utility standalone python scripts
+│   ├── seed_data.py                #   Seeds database + demo data
+│   ├── clear_seed_data.py          #   Clears database seeded data
+│   └── fix_field_mappings.py       #   Fixes IRIS field mappings keys
 │
 ├── models/                         # 8 SQLAlchemy models
 │   ├── client.py                   #   Multi-tenant organization

@@ -41,17 +41,8 @@ def create_app(config_name=None):
     migrate.init_app(app, db)
     csrf.init_app(app)  # Gap #9: CSRF protection
 
-    # --- Models (import after db.init_app so metadata registers correctly) ---
-    import models  # noqa: F401  (registers all models via models/__init__.py)
-
     # Dynamic migration check to add custom business hours columns to clients table if missing
     with app.app_context():
-        # Ensure all model tables exist in SQLite (e.g. activity_logs table)
-        try:
-            db.create_all()
-        except Exception as e:
-            logging.getLogger(__name__).error(f"db.create_all failed: {e}")
-
         try:
             db.session.execute(db.text("SELECT business_hours_start FROM clients LIMIT 1"))
         except Exception:
@@ -66,6 +57,9 @@ def create_app(config_name=None):
                 db.session.rollback()
                 logging.getLogger(__name__).error(f"Failed to migrate database columns: {e}")
 
+    # --- Models (import after db.init_app so metadata registers correctly) ---
+    from models import User  # noqa: F401  (registers all models via models/__init__.py)
+
     @login_manager.user_loader
     def load_user(user_id):
         return User.query.get(int(user_id))
@@ -77,8 +71,6 @@ def create_app(config_name=None):
     from routes.sla_rule_routes import sla_rule_bp
     from routes.report_routes import report_bp
     from routes.settings_routes import settings_bp
-    from routes.api_routes import api_bp
-    from routes.handover_routes import handover_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -86,8 +78,10 @@ def create_app(config_name=None):
     app.register_blueprint(sla_rule_bp)
     app.register_blueprint(report_bp)
     app.register_blueprint(settings_bp)
-    app.register_blueprint(api_bp)
-    app.register_blueprint(handover_bp)
+
+    # --- CLI Commands ---
+    from cli import register_cli_commands
+    register_cli_commands(app)
 
     @app.route("/")
     def root():

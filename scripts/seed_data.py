@@ -9,8 +9,12 @@ One-shot script to initialize the database with:
   - Initial case sync from IRIS
 
 Run:
-    python seed_data.py
+    python scripts/seed_data.py
 """
+
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from app import create_app
 from extensions import db
@@ -77,4 +81,3 @@ if __name__ == "__main__":
         run_initial_sync()
 
         print("\nDatabase initialized successfully.")
-

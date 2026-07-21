@@ -72,6 +72,25 @@ def _run_cleanup_job(app):
             logger.exception("Report cleanup failed")
 
 
+def _run_sla_alert_job(app):
+    """Frequent 1-minute background task to recalculate SLA status for open
+    tickets and immediately dispatch Near Breach and Breach email alerts."""
+    with app.app_context():
+        from services.sla_calculator import recalculate_all_open_tickets
+        try:
+            recalculate_all_open_tickets()
+        except Exception:
+            logger.exception("Frequent SLA recalculation failed")
+            return
+
+        if app.config.get("EMAIL_NOTIFICATIONS_ENABLED"):
+            from services.email_service import send_breach_alerts_if_needed
+            try:
+                send_breach_alerts_if_needed(app)
+            except Exception:
+                logger.exception("Breach alert email dispatch failed")
+
+
 def init_scheduler(app):
     """Registers and starts scheduled jobs. Called once from app.py at
     startup. Safe to call in debug mode - guarded against the reloader
@@ -90,6 +109,17 @@ def init_scheduler(app):
         trigger="interval",
         minutes=interval_minutes,
         id="iris_sync_job",
+        replace_existing=True,
+        max_instances=1,
+    )
+
+    # Real-time SLA monitoring & email alert dispatch (every 1 minute)
+    scheduler.add_job(
+        func=_run_sla_alert_job,
+        args=[app],
+        trigger="interval",
+        minutes=1,
+        id="sla_alert_job",
         replace_existing=True,
         max_instances=1,
     )
@@ -117,4 +147,4 @@ def init_scheduler(app):
     )
 
     scheduler.start()
-    logger.info("Scheduler started - sync every %s minute(s).", interval_minutes)
+    logger.info("Scheduler started - sync every %s minute(s), SLA alerts every 1 minute.", interval_minutes)

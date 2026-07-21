@@ -42,10 +42,13 @@ automated-sla-tracker/
 ├── app.py                     # Application factory + entry point
 ├── config.py                  # Env-driven configuration
 ├── extensions.py              # Shared db / login_manager / migrate / scheduler
-├── seed_data.py                # Seeds admin/manager/viewer users, sample SLA
-│                                 rules across 3 taxonomies, and dummy tickets
+├── cli.py                     # Custom Flask CLI commands (flask seed, flask clear-seed, etc)
 ├── requirements.txt
 ├── .env.example
+├── scripts/                   # Relocated standalone utility/admin scripts
+│   ├── seed_data.py           # Seeds users, rules, and triggers sync
+│   ├── clear_seed_data.py     # Clears all seeded clients, rules, and tickets
+│   └── fix_field_mappings.py  # Repairs/fixes IRIS field mapping keys
 ├── models/
 │   ├── user.py                # User + RBAC permission matrix
 │   ├── ticket.py               # Generic local ticket model
@@ -104,14 +107,14 @@ cp .env.example .env
 # 5. Initialize and seed the database
 #    (creates tables, 3 demo users, sample SLA rules across 3 different
 #     taxonomies, and 11 dummy tickets exercising every SLA status)
-python seed_data.py
+flask seed                      # (Alternative: python scripts/seed_data.py)
 
 # 6. Run the app
 python app.py
 # App will be available at http://localhost:5000
 ```
 
-### Demo logins (created by seed_data.py)
+### Demo logins (created by the seed command)
 
 | Username | Password    | Role    |
 |----------|-------------|---------|
@@ -169,7 +172,7 @@ with `field_name = priority`, `field_value = P1` - no code changes.
    ```
    DATABASE_URL=postgresql+psycopg2://sla_user:sla_password@localhost:5432/sla_tracker
    ```
-3. Re-run `python seed_data.py` (or use Flask-Migrate: `flask db upgrade`)
+3. Re-run `flask seed` (or use Flask-Migrate: `flask db upgrade`)
    against the new database.
 
 No application code changes are required - all data access goes through
