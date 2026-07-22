@@ -1,4 +1,4 @@
-# 🛡️ Enterprise Automated SLA Tracking & Executive Reporting System
+# Enterprise Automated SLA Tracking & Executive Reporting System
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Framework](https://img.shields.io/badge/framework-Flask%203.x-green.svg)](https://flask.palletsprojects.com/)
@@ -6,44 +6,44 @@
 [![ReportLab PDF](https://img.shields.io/badge/reports-Portrait%20A4%20PDF-red.svg)]()
 [![Security Audit](https://img.shields.io/badge/security-OWASP%20Top%2010%20Hardened-brightgreen.svg)]()
 
-A production-ready, multi-tenant **SLA Tracking & Executive Shift Handover Reporting Middleware** built for Managed Security Service Providers (MSSPs) and Incident Response teams integrating with **DFIR-IRIS**.
+A production-ready, multi-tenant SLA Tracking & Executive Shift Handover Reporting Middleware built for Managed Security Service Providers (MSSPs) and Incident Response teams integrating with DFIR-IRIS.
 
 ---
 
-## 🌟 Key Features
+## Key Features
 
-### 🔔 Real-Time SLA Alerting & Notification Bell
+### Real-Time SLA Alerting & Notification Bell
 - **Navbar Bell Dropdown**: Live unread badge count surfacing critical SLA alerts across all pages.
 - **Urgency Categorization**:
-  - ⚠️ **Near Breach (Amber)**: Live minute-by-minute countdown warnings for tickets nearing resolution deadlines.
-  - 🚨 **Breached SLA (Red)**: Immediate notification for breached cases showing exact breach duration.
-- **Direct Investigation Links**: One-click navigation to ticket details for immediate triage.
+  - **Near Breach (Amber)**: Live minute-by-minute countdown warnings for tickets nearing resolution deadlines.
+  - **Breached SLA (Red)**: Immediate notification for breached cases showing exact breach duration.
+- **Direct Triage**: One-click navigation to ticket details for immediate investigation.
 
-### 📊 Executive Reporting Engine (Portrait A4 PDF & Excel)
+### Executive Reporting Engine (Portrait A4 PDF & Excel)
 - **Portrait A4 PDF Standard**: Engineered with ReportLab `NumberedCanvas` for clean `Page X of Y` rendering.
 - **Corporate Branding**: Headers & footers feature company logo branding (`static/images/image.png`).
 - **Target Client Metadata**: Displays specific client scoping or all-client aggregates.
 - **KPI Summary Cards**: Total Incidents, SLA Compliance Rate, Breached Count, and Mean Time to Resolution (MTTR).
 
-### 🍩 SLA Breach Root Cause Tagging & Analytics
+### SLA Breach Root Cause Tagging & Analytics
 - **Root Cause Classification**: Tag breached cases with categories (*Vendor Delay*, *Customer Unresponsive*, *Third-Party Outage*, *Staff Shortage*, *Technical Complexity*, or *Custom*).
 - **Interactive Doughnut Chart**: Live visual breakdown on the executive dashboard to identify operational bottlenecks.
 - **Audit Notes**: Field for recording investigation details for client shift handovers.
 
-### ⏰ Business Hours & Pause/Resume SLA Engine
+### Business Hours & Pause/Resume SLA Engine
 - **Custom Business Calendars**: Computes SLA deadlines strictly within working hours (e.g., Mon–Fri 09:00–18:00 PKT), skipping nights, weekends, and holidays.
 - **Clock Shifting on Pause**: When tickets enter pending/paused states (*Awaiting Customer*, *Vendor Hold*), deadlines shift forward dynamically to protect SLA integrity.
 
-### 🛡️ Enterprise Security & RBAC Isolation
+### Enterprise Security & RBAC Isolation
 - **Role-Based Access Control**:
-  - 👑 **Admin**: Full system access (settings, field mappings, SLA rules, client CRUD, audit logs).
-  - 👔 **Manager**: Operations management (ticket view, SLA recalculations, root cause tagging, report generation).
-  - 👁️ **Viewer**: Read-only stakeholder monitoring.
+  - **Admin**: Full system access (settings, field mappings, SLA rules, client CRUD, audit logs).
+  - **Manager**: Operations management (ticket view, SLA recalculations, root cause tagging, report generation).
+  - **Viewer**: Read-only stakeholder monitoring.
 - **OWASP Top 10 Hardened**: Includes brute-force login lockout, CSRF protection, security headers (`X-Frame-Options`, `CSP`), and restricted raw payload debugging.
 
 ---
 
-## 🏗️ System Architecture
+## System Architecture
 
 ```mermaid
 graph TD
@@ -60,23 +60,23 @@ graph TD
 
 ---
 
-## 👥 Role Permission Matrix
+## Role Permission Matrix
 
 | Feature / Action | Admin | Manager | Viewer |
 | :--- | :---: | :---: | :---: |
-| **View Dashboard & SLA Metrics** | ✅ Yes | ✅ Yes | ✅ Yes |
-| **View Tickets & SLA Timelines** | ✅ Yes | ✅ Yes | ✅ Yes |
-| **View Generated Reports & Download** | ✅ Yes | ✅ Yes | ✅ Yes |
-| **Update SLA Breach Root Cause** | ✅ Yes | ✅ Yes | 🔒 Read-Only |
-| **Generate New PDF & Excel Reports** | ✅ Yes | ✅ Yes | 🔒 Restricted |
-| **Manage SLA Rules & Conditions** | ✅ Yes | 🔒 Restricted | 🔒 Restricted |
-| **Manage Clients (Create, Edit, Delete, Toggle)** | ✅ Yes | 🔒 Restricted | 🔒 Restricted |
-| **Manage System Settings & IRIS Integration** | ✅ Yes | 🔒 Restricted | 🔒 Restricted |
-| **Manage Holiday Calendar & View Audit Logs** | ✅ Yes | 🔒 Restricted | 🔒 Restricted |
+| **View Dashboard & SLA Metrics** | Yes | Yes | Yes |
+| **View Tickets & SLA Timelines** | Yes | Yes | Yes |
+| **View Generated Reports & Download** | Yes | Yes | Yes |
+| **Update SLA Breach Root Cause** | Yes | Yes | Read-Only |
+| **Generate New PDF & Excel Reports** | Yes | Yes | Restricted |
+| **Manage SLA Rules & Conditions** | Yes | Restricted | Restricted |
+| **Manage Clients (Create, Edit, Delete, Toggle)** | Yes | Restricted | Restricted |
+| **Manage System Settings & IRIS Integration** | Yes | Restricted | Restricted |
+| **Manage Holiday Calendar & View Audit Logs** | Yes | Restricted | Restricted |
 
 ---
 
-## 📁 Project Structure
+## Project Directory Structure
 
 ```text
 automated-sla-tracker/
@@ -112,7 +112,7 @@ automated-sla-tracker/
 
 ---
 
-## ⚙️ Environment Configuration (`.env`)
+## Environment Configuration (`.env`)
 
 Copy `.env.example` to `.env` and configure key variables:
 
@@ -139,7 +139,7 @@ SMTP_FROM_EMAIL=alerts@example.com
 
 ---
 
-## 🚀 Quick Start Guide
+## Quick Start Guide
 
 ### 1. Clone & Environment Setup
 ```bash
@@ -179,7 +179,7 @@ Access the web dashboard at: `http://localhost:5000`
 
 ---
 
-## 🧪 Testing & Verification
+## Testing & Verification
 
 Run the full automated test suite containing **95 verified unit & integration tests**:
 
@@ -189,21 +189,26 @@ pytest -v
 
 ---
 
-## 🌐 Production Deployment
+## Production Deployment
 
 ### Vercel (Serverless Deployment)
 This repository includes a production-ready `vercel.json`:
-1. Connect your repository in the [Vercel Dashboard](https://vercel.com/new).
+1. Connect your repository in the Vercel Dashboard.
 2. Configure Environment Variables (`DATABASE_URL`, `SECRET_KEY`, `IRIS_BASE_URL`, `IRIS_API_KEY`).
 3. Deploy!
 
 ### Render (Containerized Web Service)
 This repository includes a `render.yaml` Blueprint specification:
-1. Create a new Blueprint on [Render](https://dashboard.render.com/blueprints).
+1. Create a new Blueprint on Render.
 2. Connect your GitHub repository.
 3. Render automatically provisions a Python Web Service running `gunicorn app:app`.
 
 ---
 
-## 📝 License
-This project is licensed under the MIT License - see the LICENSE file for details.
+## Security Reporting
+For security concerns or vulnerability disclosures, please refer to [SECURITY.md](SECURITY.md) or contact **ma4200417@gmail.com**.
+
+---
+
+## License
+This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
