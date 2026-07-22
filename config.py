@@ -18,16 +18,24 @@ def _bool(value, default=False):
     return str(value).strip().lower() in ("1", "true", "yes", "on")
 
 
+IS_VERCEL = bool(os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"))
+
+# Fix legacy Postgres URL scheme (e.g. from Render / Heroku) for SQLAlchemy 2.x
+_raw_db_url = os.environ.get("DATABASE_URL")
+if _raw_db_url and _raw_db_url.startswith("postgres://"):
+    _raw_db_url = _raw_db_url.replace("postgres://", "postgresql://", 1)
+
+
 class Config:
     # --- Flask core ---
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
 
     # --- Database ---
-    # Defaults to SQLite for local dev. Swap DATABASE_URL to a postgresql://
-    # connection string in .env to migrate to PostgreSQL - no code changes needed
-    # because we only use standard SQLAlchemy ORM features.
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or (
-        "sqlite:///" + os.path.join(basedir, "instance", "sla_tracker.db")
+    is_vercel = _bool(os.environ.get("VERCEL"))
+    default_db_path = "/tmp/sla_tracker.db" if is_vercel else os.path.join(basedir, "instance", "sla_tracker.db")
+
+    SQLALCHEMY_DATABASE_URI = _raw_db_url or (
+        "sqlite:///" + default_db_path
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
@@ -56,7 +64,8 @@ class Config:
     SMTP_USE_TLS = _bool(os.environ.get("SMTP_USE_TLS"), True)
 
     # --- Reports ---
-    REPORTS_FOLDER = os.path.join(basedir, os.environ.get("REPORTS_FOLDER", "generated_reports"))
+    default_reports_folder = "/tmp/generated_reports" if is_vercel else os.path.join(basedir, "generated_reports")
+    REPORTS_FOLDER = os.environ.get("REPORTS_FOLDER") or default_reports_folder
 
 
 class DevelopmentConfig(Config):

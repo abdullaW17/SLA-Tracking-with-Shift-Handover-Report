@@ -238,8 +238,60 @@ To swap from the default local SQLite database to a production PostgreSQL databa
 
 ---
 
-## 9. Known Limitations
+## 9. Deployment Guide (Vercel & Render)
+
+### Deploying to Vercel
+This repository includes a pre-configured [vercel.json](file:///c:/Users/ma420/Downloads/automated-sla-tracker/automated-sla-tracker/vercel.json) file designed for Vercel Python Serverless Functions.
+
+1. **Import Project**: Go to the [Vercel Dashboard](https://vercel.com/new) and import your GitHub repository.
+2. **Environment Variables**: In the Vercel project settings, set:
+   * `SECRET_KEY`: Set a secure random secret key string.
+   * `DATABASE_URL`: (Recommended) Connect a managed PostgreSQL instance (e.g., Supabase, Neon, or Vercel Postgres).
+   * `IRIS_BASE_URL` & `IRIS_API_KEY`: Your DFIR-IRIS platform credentials.
+3. **Deploy**: Click **Deploy**. Vercel will build the serverless functions and host the application.
+
+*Note: On serverless platforms, SQLite automatically falls back to `/tmp/sla_tracker.db` if no external `DATABASE_URL` is supplied.*
+
+### Deploying to Render
+This repository includes a [render.yaml](file:///c:/Users/ma420/Downloads/automated-sla-tracker/automated-sla-tracker/render.yaml) Blueprint specification for automated deployment on Render using Gunicorn.
+
+1. **New Blueprint**: Navigate to [Render Blueprints Dashboard](https://dashboard.render.com/blueprints).
+2. **Connect Repository**: Select your GitHub repository (`SLA-Tracking-with-Shift-Handover-Report`).
+3. **Configure & Deploy**: Render will auto-detect `render.yaml` and configure a Web Service running `gunicorn app:app`. Add your runtime environment variables and click **Apply**.
+
+---
+
+## 10. Known Limitations
 
 * **In-Memory Rate Limiting**: The login lockout counter is currently stored in memory. Relocating to a distributed cache (like Redis) is recommended for horizontal deployments to prevent counters from resetting during server restarts.
 * **Single Business Calendar**: The engine computes business hour SLAs based on a single customizable working window. A calendar table configuration is recommended to support complex, per-client shifts.
 * **Report Retention Policy**: Generated files are managed under a strict 90-day retention rule. Weekly, the scheduler executes the cleanup service which purges any database rows and corresponding disk files older than 90 days. Adjust the arguments in `services/cleanup_service.py` to change this duration.
+
+---
+
+## 10. Deployment Guides (Vercel & Render)
+
+### Deploying to Vercel (Serverless)
+
+1. Ensure `vercel.json` is present in the project root directory.
+2. Install Vercel CLI (optional) or push your repository to GitHub:
+   ```bash
+   npm i -g vercel
+   vercel
+   ```
+3. In the Vercel Dashboard, set the following Environment Variables under **Settings -> Environment Variables**:
+   * `SECRET_KEY`: A secure random string.
+   * `DATABASE_URL`: PostgreSQL connection string (recommended for production) or let it fallback to `/tmp/sla_tracker.db` for ephemeral storage.
+   * `IRIS_BASE_URL` & `IRIS_API_KEY`: DFIR-IRIS credentials.
+   * `VERCEL`: Set to `1`.
+
+### Deploying to Render (Web Service)
+
+1. Connect your GitHub repository to Render.
+2. Select **Blueprints** and choose `render.yaml` from your repository, or create a new **Web Service** with:
+   * **Environment**: `Python 3`
+   * **Build Command**: `pip install -r requirements.txt`
+   * **Start Command**: `gunicorn app:app`
+3. Configure your Environment Variables (`SECRET_KEY`, `DATABASE_URL`, `IRIS_BASE_URL`, `IRIS_API_KEY`).
+4. Click **Deploy**.
+

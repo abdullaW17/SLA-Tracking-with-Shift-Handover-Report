@@ -31,9 +31,16 @@ def create_app(config_name=None):
     app.config.setdefault("SESSION_COOKIE_SAMESITE", "Lax")
     app.config.setdefault("PERMANENT_SESSION_LIFETIME", timedelta(hours=8))
 
-    # Ensure instance/ and generated_reports/ exist for SQLite + report output
-    os.makedirs(os.path.join(app.root_path, "instance"), exist_ok=True)
-    os.makedirs(app.config["REPORTS_FOLDER"], exist_ok=True)
+    # Ensure instance/ and generated_reports/ exist for SQLite + report output (safely handled on read-only serverless filesystems)
+    try:
+        os.makedirs(os.path.join(app.root_path, "instance"), exist_ok=True)
+    except OSError:
+        pass
+
+    try:
+        os.makedirs(app.config["REPORTS_FOLDER"], exist_ok=True)
+    except OSError:
+        pass
 
     # --- Extensions ---
     db.init_app(app)
