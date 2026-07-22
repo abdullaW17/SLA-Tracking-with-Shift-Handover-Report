@@ -60,6 +60,47 @@
                 {% endif %}
             </ul>
             <div class="d-flex align-items-center gap-3">
+                <!-- Real-Time SLA Notifications Bell Dropdown -->
+                <div class="dropdown me-1">
+                    <button class="btn btn-link text-white position-relative p-1 text-decoration-none" type="button" id="notifBellDropdown" data-bs-toggle="dropdown" aria-expanded="false" title="SLA Alerts &amp; Notifications">
+                        <i class="bi bi-bell-fill fs-5"></i>
+                        {% if unread_notification_count > 0 %}
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-light" style="font-size:0.6rem;">
+                            {{ unread_notification_count }}
+                        </span>
+                        {% endif %}
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end p-0 shadow-lg border-0" style="width: 350px; max-height: 420px; overflow-y: auto;" aria-labelledby="notifBellDropdown">
+                        <div class="p-3 bg-light border-bottom d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0 fw-bold"><i class="bi bi-bell text-primary me-2"></i>SLA Alerts &amp; Notifications</h6>
+                            <span class="badge bg-{{ 'danger' if unread_notification_count > 0 else 'secondary' }} rounded-pill">{{ unread_notification_count }} Alert(s)</span>
+                        </div>
+                        <div class="list-group list-group-flush">
+                            {% for notif in notifications %}
+                            <a href="{{ notif.link }}" class="list-group-item list-group-item-action p-3 border-bottom">
+                                <div class="d-flex align-items-start">
+                                    <div class="me-2 fs-5 text-{{ notif.badge_color }}">
+                                        <i class="bi {{ notif.icon }}"></i>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <strong class="small text-dark">{{ notif.title }}</strong>
+                                            <span class="badge bg-{{ notif.badge_color }}" style="font-size:0.65rem;">{{ notif.time_str }}</span>
+                                        </div>
+                                        <p class="mb-0 text-muted" style="font-size:0.75rem;">{{ notif.message }}</p>
+                                    </div>
+                                </div>
+                            </a>
+                            {% else %}
+                            <div class="p-4 text-center text-muted small">
+                                <i class="bi bi-check-circle fs-3 text-success d-block mb-2"></i>
+                                All SLAs compliant! No active breach alerts.
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
                 <span class="status-live"><span class="pulse-dot"></span> Active</span>
                 <span class="navbar-text">
                     <span class="badge bg-secondary">{{ current_user.role }}</span>

@@ -102,6 +102,63 @@ def create_app(config_name=None):
     def load_user(user_id):
         return User.query.get(int(user_id))
 
+    @app.context_processor
+    def inject_notifications():
+        from flask import url_for
+        from flask_login import current_user
+        from datetime import datetime, timezone
+        if not current_user.is_authenticated:
+            return {"notifications": [], "unread_notification_count": 0}
+
+        try:
+            from models import Ticket
+            from models.ticket import SLA_BREACHED, SLA_CLOSED_AFTER_BREACH, SLA_NEAR_BREACH
+
+            notifications = []
+            now = datetime.now(timezone.utc)
+
+            open_tickets = Ticket.query.filter(Ticket.status.notin_(["closed", "resolved", "cancelled", "deleted", "deleted_in_source"])).all()
+
+            for t in open_tickets:
+                if t.sla_status == SLA_NEAR_BREACH:
+                    rem_mins = 0
+                    if t.resolution_deadline:
+                        dl = t.resolution_deadline.replace(tzinfo=timezone.utc) if t.resolution_deadline.tzinfo is None else t.resolution_deadline
+                        rem_mins = max(0, int((dl - now).total_seconds() / 60))
+
+                    client_name = t.client.name if t.client else "N/A"
+                    notifications.append({
+                        "id": f"near_{t.id}",
+                        "type": "near_breach",
+                        "title": f"Near Breach: {t.external_id}",
+                        "message": f"'{t.title}' ({client_name}) has {rem_mins} mins remaining until SLA breach!",
+                        "time_str": f"{rem_mins}m left",
+                        "badge_color": "warning",
+                        "icon": "bi-exclamation-triangle-fill",
+                        "link": url_for("tickets.ticket_detail", ticket_id=t.id),
+                    })
+                elif t.sla_status in (SLA_BREACHED, SLA_CLOSED_AFTER_BREACH):
+                    breach_mins = t.breach_duration_minutes or 0
+                    client_name = t.client.name if t.client else "N/A"
+                    notifications.append({
+                        "id": f"breach_{t.id}",
+                        "type": "breach",
+                        "title": f"SLA Breached: {t.external_id}",
+                        "message": f"'{t.title}' ({client_name}) breached SLA by {breach_mins} mins!",
+                        "time_str": f"{breach_mins}m breach",
+                        "badge_color": "danger",
+                        "icon": "bi-alarm-fill",
+                        "link": url_for("tickets.ticket_detail", ticket_id=t.id),
+                    })
+
+            notifications.sort(key=lambda x: (0 if x["type"] == "near_breach" else 1))
+            return {
+                "notifications": notifications,
+                "unread_notification_count": len(notifications),
+            }
+        except Exception:
+            return {"notifications": [], "unread_notification_count": 0}
+
     # --- Blueprints ---
     from routes.auth_routes import auth_bp
     from routes.dashboard_routes import dashboard_bp

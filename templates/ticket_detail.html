@@ -39,6 +39,7 @@
                 <tr><th>Resolution SLA Status</th><td>{{ ticket.resolution_sla_status or '-' }}</td></tr>
                 <tr><th>Breach Duration</th><td>{% if ticket.breach_duration_minutes and ticket.breach_duration_minutes > 0 %}<span class="text-danger fw-bold">{{ ticket.breach_duration_minutes }} minutes</span>{% else %}{{ ticket.breach_duration_minutes or 0 }} minutes{% endif %}</td></tr>
             </table>
+            {% if current_user.has_permission('generate_reports') %}
             <div class="d-grid gap-2">
                 <form method="POST" action="{{ url_for('tickets.trigger_recalculate') }}" class="d-inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -49,14 +50,16 @@
                     <button class="btn btn-primary btn-sm w-100"><i class="bi bi-envelope"></i> Send Mail Directly</button>
                 </form>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>
 
-<!-- SLA Breach Root Cause Tagging Form -->
+<!-- SLA Breach Root Cause Tagging Card -->
 <div class="card p-3 mt-4 border-start border-4 border-danger shadow-sm">
     <h6 class="fw-bold"><i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>SLA Breach Root Cause Tagging</h6>
     <p class="text-muted small mb-3">Categorize the root cause of SLA delay for executive reporting and dashboard analytics.</p>
+    {% if current_user.has_permission('generate_reports') %}
     <form method="POST" action="{{ url_for('tickets.update_breach_reason', ticket_id=ticket.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="row g-3">
@@ -82,10 +85,31 @@
             <button type="submit" class="btn btn-sm btn-danger px-3"><i class="bi bi-save me-1"></i> Save Root Cause Analysis</button>
         </div>
     </form>
+    {% else %}
+    <div class="row g-3">
+        <div class="col-md-5">
+            <label class="form-label small fw-bold">Root Cause Category</label>
+            <div><span class="badge bg-danger fs-6">{{ ticket.breach_reason or 'Not Tagged Yet' }}</span></div>
+        </div>
+        <div class="col-md-7">
+            <label class="form-label small fw-bold">Root Cause Analysis Notes</label>
+            <p class="small text-muted mb-0">{{ ticket.breach_notes or 'No investigation notes provided.' }}</p>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
-<div class="card p-3 mt-4">
-    <h6><i class="bi bi-code-slash me-1"></i> Raw Source Payload</h6>
-    <pre class="small p-3 rounded" style="max-height: 300px; overflow:auto;">{{ ticket.raw_payload_json or 'No raw payload stored.' }}</pre>
+{% if current_user.has_permission('manage_iris_settings') %}
+<div class="card p-3 mt-4 border-0 shadow-sm">
+    <div class="d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 text-muted small fw-bold"><i class="bi bi-code-slash me-1"></i> Raw Source Payload (Admin Debugging Only)</h6>
+        <button class="btn btn-sm btn-outline-secondary py-0 px-2" type="button" data-bs-toggle="collapse" data-bs-target="#rawPayloadCollapse" aria-expanded="false">
+            <i class="bi bi-eye me-1"></i> View Raw JSON
+        </button>
+    </div>
+    <div class="collapse mt-3" id="rawPayloadCollapse">
+        <pre class="small p-3 rounded bg-dark text-light border border-secondary mb-0" style="max-height: 280px; overflow:auto;">{{ ticket.raw_payload_json or 'No raw payload stored.' }}</pre>
+    </div>
 </div>
+{% endif %}
 {% endblock %}
