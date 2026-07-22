@@ -2,8 +2,12 @@
 {% block title %}Settings{% endblock %}
 
 {% block content %}
-<div class="dashboard-header">
-    <h3><i class="bi bi-gear-fill me-2"></i>Settings</h3>
+<div class="dashboard-header d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0"><i class="bi bi-gear-fill me-2"></i>Settings</h3>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('dashboard.client_breakdown') }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-people-fill me-1"></i> Client Breakdown</a>
+        <a href="{{ url_for('settings.audit_log_list') }}" class="btn btn-sm btn-outline-dark"><i class="bi bi-journal-text me-1"></i> View Audit Logs</a>
+    </div>
 </div>
 
 <div class="row g-4">
@@ -94,8 +98,59 @@
     </div>
 </div>
 
+<!-- Holiday Calendar & Client Management -->
 <div class="row g-4 mt-2">
-    <div class="col-12">
+    <div class="col-lg-6">
+        <div class="card p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="mb-0"><i class="bi bi-calendar-event-fill text-primary me-2"></i>Holiday Calendar</h6>
+                <span class="badge bg-light text-dark">{{ holidays|length }} Holiday(s) Configured</span>
+            </div>
+            <p class="small text-muted">Holidays pause SLA timer calculations during business hours for impacted clients.</p>
+            
+            <form method="POST" action="{{ url_for('settings.holiday_create') }}" class="row g-2 mb-3 bg-light p-2 rounded border">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="col-md-5">
+                    <input type="text" name="name" class="form-control form-control-sm" placeholder="Holiday Name (e.g. Eid)" required>
+                </div>
+                <div class="col-md-4">
+                    <input type="date" name="holiday_date" class="form-control form-control-sm" required>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-plus-circle me-1"></i> Add</button>
+                </div>
+            </form>
+
+            <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Holiday Name</th>
+                            <th>Date</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for h in holidays %}
+                        <tr>
+                            <td class="fw-bold">{{ h.name }}</td>
+                            <td><code>{{ h.holiday_date }}</code></td>
+                            <td class="text-end">
+                                <form method="POST" action="{{ url_for('settings.holiday_delete', holiday_id=h.id) }}" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size:0.75rem;"><i class="bi bi-trash"></i> Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="text-center text-muted py-2">No holidays added yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
         <div class="card p-3">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h6 class="mb-0"><i class="bi bi-building-fill me-1"></i> Clients</h6>
