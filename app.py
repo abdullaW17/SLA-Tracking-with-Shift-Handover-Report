@@ -27,20 +27,37 @@ def create_app(config_name=None):
     app.config.from_object(config_by_name.get(config_name, config_by_name["development"]))
 
     # --- Gap #9: Session cookie hardening ---
-    app.config.setdefault("SESSION_COOKIE_HTTPONLY", True)
-    app.config.setdefault("SESSION_COOKIE_SAMESITE", "Lax")
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config.setdefault("PERMANENT_SESSION_LIFETIME", timedelta(hours=8))
+    if not app.config.get("DEBUG", False):
+        app.config.setdefault("SESSION_COOKIE_SECURE", True)
+
+    @app.after_request
+    def add_security_headers(response):
+        response.headers["X-Frame-Options"] = "SAMEORIGIN"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com; "
+            "font-src 'self' https://cdn.jsdelivr.net data:; "
+            "img-src 'self' data: https://*.tile.openstreetmap.org;"
+        )
+        return response
 
     # Ensure instance/ and generated_reports/ exist for SQLite + report output (safely handled on read-only serverless filesystems)
     try:
         os.makedirs(os.path.join(app.root_path, "instance"), exist_ok=True)
-    except OSError:
-        pass
+    except OSError as err:
+        logging.getLogger(__name__).debug("Instance directory creation skipped: %s", err)
 
     try:
         os.makedirs(app.config["REPORTS_FOLDER"], exist_ok=True)
-    except OSError:
-        pass
+    except OSError as err:
+        logging.getLogger(__name__).debug("Reports directory creation skipped: %s", err)
 
     # --- Extensions ---
     db.init_app(app)
@@ -48,8 +65,9 @@ def create_app(config_name=None):
     migrate.init_app(app, db)
     csrf.init_app(app)  # Gap #9: CSRF protection
 
-    # Dynamic migration check to add custom business hours columns to clients table if missing
+    # Dynamic migration check to add missing columns/tables to local SQLite DB if needed
     with app.app_context():
+        db.create_all()
         try:
             db.session.execute(db.text("SELECT business_hours_start FROM clients LIMIT 1"))
         except Exception:
@@ -63,6 +81,19 @@ def create_app(config_name=None):
             except Exception as e:
                 db.session.rollback()
                 logging.getLogger(__name__).error(f"Failed to migrate database columns: {e}")
+
+        try:
+            db.session.execute(db.text("SELECT breach_reason FROM tickets LIMIT 1"))
+        except Exception:
+            db.session.rollback()
+            try:
+                db.session.execute(db.text("ALTER TABLE tickets ADD COLUMN breach_reason VARCHAR(100)"))
+                db.session.execute(db.text("ALTER TABLE tickets ADD COLUMN breach_notes TEXT"))
+                db.session.commit()
+                logging.getLogger(__name__).info("Migrated database: added breach_reason and breach_notes columns to tickets table")
+            except Exception as e:
+                db.session.rollback()
+                logging.getLogger(__name__).error(f"Failed to migrate tickets columns: {e}")
 
     # --- Models (import after db.init_app so metadata registers correctly) ---
     from models import User  # noqa: F401  (registers all models via models/__init__.py)
@@ -109,8 +140,8 @@ def create_app(config_name=None):
                 for c in classifications:
                     if c.get("name") == val:
                         return c.get("name_expanded") or val
-            except Exception:
-                pass
+            except Exception as err:
+                logging.getLogger(__name__).warning("Severity display classification lookup skipped: %s", err)
             return val
 
         return dict(
@@ -137,4 +168,4 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=app.config.get("DEBUG", True), use_reloader=False)
+    app.run(host="0.0.0.0", port=5000, debug=app.config.get("DEBUG", False), use_reloader=False)

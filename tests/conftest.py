@@ -30,11 +30,14 @@ def app():
 @pytest.fixture(autouse=True)
 def db(app):
     """Create clean tables for each test, then drop after."""
+    from routes.auth_routes import _failed_attempts
+    _failed_attempts.clear()
     with app.app_context():
         _db.create_all()
         yield _db
         _db.session.rollback()
         _db.drop_all()
+        _failed_attempts.clear()
 
 
 @pytest.fixture

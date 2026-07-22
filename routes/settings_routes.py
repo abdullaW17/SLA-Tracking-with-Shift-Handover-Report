@@ -7,12 +7,14 @@ plus a "Test Connection" action and field-mapping management.
 Multi-tenancy (Gap #1): includes client CRUD (create/edit/deactivate).
 """
 
+from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_login import login_required
 
 from extensions import db
-from models import Setting, FieldMapping, Client
+from models import Setting, FieldMapping, Client, Holiday, AuditLog
 from routes.decorators import permission_required
+from services.audit_service import log_audit
 
 settings_bp = Blueprint("settings", __name__)
 
@@ -43,6 +45,7 @@ def settings_page():
         Setting.set("business_hours_end", bh_end)
         Setting.set("business_hours_days", bh_days)
         
+        log_audit("update_settings", "Setting", details="Updated application & business hours settings")
         flash("Settings saved. Note: sync interval changes take effect after restart.", "success")
         return redirect(url_for("settings.settings_page"))
 
@@ -56,6 +59,7 @@ def settings_page():
 
     field_mappings = FieldMapping.query.filter_by(source_system="dfir_iris", client_id=None).all()
     clients = Client.query.order_by(Client.name).all()
+    holidays = Holiday.query.order_by(Holiday.holiday_date.desc()).all()
 
     return render_template(
         "settings.html",
@@ -67,6 +71,7 @@ def settings_page():
         bh_start=bh_start,
         bh_end=bh_end,
         bh_days=bh_days,
+        holidays=holidays,
     )
 
 
@@ -217,3 +222,68 @@ def send_test_email():
         flash("Failed to send test email. Check SMTP settings and logs.", "danger")
         
     return redirect(url_for("settings.settings_page"))
+
+
+# --- Holiday Calendar CRUD ---
+
+@settings_bp.route("/settings/holidays", methods=["GET"])
+@login_required
+@permission_required("manage_iris_settings")
+def holiday_list_page():
+    return redirect(url_for("settings.settings_page"))
+
+
+@settings_bp.route("/settings/holidays/create", methods=["POST"])
+@login_required
+@permission_required("manage_iris_settings")
+def holiday_create():
+    name = request.form.get("name", "").strip()
+    date_str = request.form.get("holiday_date", "").strip()
+    client_id_raw = request.form.get("client_id", "").strip()
+    client_id = int(client_id_raw) if client_id_raw else None
+
+    if not name or not date_str:
+        flash("Holiday name and date are required.", "danger")
+        return redirect(url_for("settings.settings_page"))
+
+    try:
+        h_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        flash("Invalid date format. Use YYYY-MM-DD.", "danger")
+        return redirect(url_for("settings.settings_page"))
+
+    holiday = Holiday(name=name, holiday_date=h_date, client_id=client_id)
+    db.session.add(holiday)
+    db.session.commit()
+
+    log_audit("create_holiday", "Holiday", target_id=holiday.id, details=f"Created holiday '{name}' on {h_date}")
+    flash(f"Holiday '{name}' added for {h_date}.", "success")
+    return redirect(url_for("settings.settings_page"))
+
+
+@settings_bp.route("/settings/holidays/<int:holiday_id>/delete", methods=["POST"])
+@login_required
+@permission_required("manage_iris_settings")
+def holiday_delete(holiday_id):
+    holiday = Holiday.query.get_or_404(holiday_id)
+    h_name = holiday.name
+    db.session.delete(holiday)
+    db.session.commit()
+
+    log_audit("delete_holiday", "Holiday", target_id=holiday_id, details=f"Deleted holiday '{h_name}'")
+    flash(f"Holiday '{h_name}' deleted.", "info")
+    return redirect(url_for("settings.settings_page"))
+
+
+# --- Audit Logs View ---
+
+@settings_bp.route("/settings/audit-logs")
+@login_required
+@permission_required("manage_iris_settings")
+def audit_log_list():
+    page = request.args.get("page", 1, type=int)
+    page = max(1, min(page, 1000))
+    pagination = AuditLog.query.order_by(AuditLog.created_at.desc()).paginate(
+        page=page, per_page=50, error_out=False
+    )
+    return render_template("audit_logs.html", pagination=pagination, logs=pagination.items)

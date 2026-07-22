@@ -8,3 +8,4 @@ generated_reports/*.pdf
 generated_reports/*.xlsx
 .DS_Store
 *.egg-info/
+bandit_report.html

@@ -45,8 +45,9 @@ def get_business_hours(client=None):
         global_days = Setting.get("business_hours_days")
         if global_days:
             days_str = global_days
-    except Exception:
-        pass
+    except Exception as err:
+        import logging
+        logging.getLogger(__name__).debug("Global business hours settings lookup fallback: %s", err)
 
     # 2. Fetch client-level overrides if configured
     if client:
@@ -61,20 +62,26 @@ def get_business_hours(client=None):
     try:
         sh, sm = map(int, start_str.split(":"))
         work_start = time(sh, sm)
-    except Exception:
+    except Exception as err:
+        import logging
+        logging.getLogger(__name__).debug("Defaulting start time to 09:00 due to parse error: %s", err)
         work_start = time(9, 0)
 
     # Parse end time
     try:
         eh, em = map(int, end_str.split(":"))
         work_end = time(eh, em)
-    except Exception:
+    except Exception as err:
+        import logging
+        logging.getLogger(__name__).debug("Defaulting end time to 17:00 due to parse error: %s", err)
         work_end = time(17, 0)
 
     # Parse working days
     try:
         work_days = {int(x.strip()) for x in days_str.split(",") if x.strip() != ""}
-    except Exception:
+    except Exception as err:
+        import logging
+        logging.getLogger(__name__).debug("Defaulting working days to Mon-Fri due to parse error: %s", err)
         work_days = {0, 1, 2, 3, 4}
 
     return work_start, work_end, work_days
@@ -91,12 +98,28 @@ def _get_client_tz(client):
         return ZoneInfo("UTC")
 
 
+def get_client_holidays(client=None):
+    """Fetch set of holiday dates for client + global holidays."""
+    try:
+        from models.holiday import Holiday
+        from extensions import db
+        client_id = getattr(client, "id", None) if client else None
+        query = Holiday.query.filter(
+            db.or_(Holiday.client_id == None, Holiday.client_id == client_id)  # noqa: E711
+        )
+        return {h.holiday_date for h in query.all()}
+    except Exception as err:
+        import logging
+        logging.getLogger(__name__).debug("Holiday lookup skipped: %s", err)
+        return set()
+
+
 def add_business_minutes(start_dt, minutes, client=None):
     """
     Compute a deadline by adding ``minutes`` of business time to ``start_dt``.
 
     Only hours within the working window (customizable globally or per-client)
-    are counted. Weekends and outside-hours periods are skipped.
+    are counted. Weekends, holidays, and outside-hours periods are skipped.
 
     Args:
         start_dt: timezone-aware datetime (UTC internally)
@@ -114,8 +137,9 @@ def add_business_minutes(start_dt, minutes, client=None):
     # Convert start time to the client's local timezone for calendar math
     local_dt = start_dt.astimezone(client_tz)
 
-    # Fetch custom business hours configuration
+    # Fetch custom business hours configuration & holiday calendar
     work_start, work_end, work_days = get_business_hours(client)
+    holidays = get_client_holidays(client)
 
     # If work_days is empty (e.g. client set no working days), return start_dt to avoid infinite loop
     if not work_days:
@@ -124,12 +148,10 @@ def add_business_minutes(start_dt, minutes, client=None):
     remaining = float(minutes)
 
     while remaining > 0:
-        # If we're on a non-working day, skip to next working day start
-        if local_dt.weekday() not in work_days:
-            # Jump to next day
-            days_ahead = 1
-            next_dt = local_dt + timedelta(days=days_ahead)
-            while next_dt.weekday() not in work_days:
+        # If we're on a non-working day or holiday, skip to next working day start
+        if local_dt.weekday() not in work_days or local_dt.date() in holidays:
+            next_dt = local_dt + timedelta(days=1)
+            while next_dt.weekday() not in work_days or next_dt.date() in holidays:
                 next_dt += timedelta(days=1)
             local_dt = next_dt.replace(
                 hour=work_start.hour,

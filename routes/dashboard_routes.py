@@ -206,6 +206,14 @@ def _build_dashboard_metrics(client_id=None, month=None):
             "lng": coords["lng"],
         }
 
+    # --- Breach Root Cause Distribution ---
+    breach_reason_counter = Counter()
+    for t in tickets:
+        if t.breach_reason:
+            breach_reason_counter[t.breach_reason] += 1
+        elif t.sla_status in (SLA_BREACHED, SLA_CLOSED_AFTER_BREACH):
+            breach_reason_counter["Uncategorized"] += 1
+
     return {
         "total_tickets": total,
         "open_tickets": open_tickets,
@@ -225,6 +233,7 @@ def _build_dashboard_metrics(client_id=None, month=None):
             "No Matching Rule": no_rule,
         },
         "taxonomy_distribution": dict(taxonomy_counter),
+        "breach_reason_distribution": dict(breach_reason_counter),
         "monthly_trend": {
             "labels": sorted_months,
             "within": [monthly_trend[m]["within"] for m in sorted_months],
@@ -241,6 +250,87 @@ def _build_dashboard_metrics(client_id=None, month=None):
     }
 
 
+def _get_recent_activity(limit=10):
+    """Retrieve recent system activity timeline from tickets, sync logs, and audit logs."""
+    from models import SyncLog, AuditLog
+    activities = []
+
+    # 1. Recent Tickets
+    recent_tickets = Ticket.query.order_by(Ticket.updated_at.desc()).limit(limit).all()
+    for t in recent_tickets:
+        if t.sla_status in (SLA_BREACHED, SLA_CLOSED_AFTER_BREACH):
+            icon = "bi-exclamation-octagon-fill text-danger"
+            desc = f"Ticket #{t.external_id} breached SLA target"
+        elif t.sla_status in (SLA_WITHIN, SLA_CLOSED_WITHIN):
+            icon = "bi-check-circle-fill text-success"
+            desc = f"Ticket #{t.external_id} resolved within SLA"
+        else:
+            icon = "bi-ticket-detailed-fill text-primary"
+            desc = f"Ticket #{t.external_id} updated ({t.status or 'Open'})"
+
+        activities.append({
+            "timestamp": t.updated_at or t.created_at,
+            "title": desc,
+            "category": "Ticket",
+            "icon": icon,
+            "link": f"/tickets/{t.id}"
+        })
+
+    # 2. Recent Sync Runs
+    recent_syncs = SyncLog.query.order_by(SyncLog.sync_started_at.desc()).limit(5).all()
+    for s in recent_syncs:
+        icon = "bi-arrow-repeat text-info" if s.status == "SUCCESS" else "bi-x-circle-fill text-warning"
+        desc = f"IRIS Sync {s.status.lower()}: {s.records_created} created, {s.records_updated} updated"
+        activities.append({
+            "timestamp": s.sync_started_at,
+            "title": desc,
+            "category": "Sync",
+            "icon": icon,
+            "link": "/tickets"
+        })
+
+    # 3. Recent Audit Logs
+    recent_audits = AuditLog.query.order_by(AuditLog.created_at.desc()).limit(5).all()
+    for a in recent_audits:
+        activities.append({
+            "timestamp": a.created_at,
+            "title": f"{a.username} performed {a.action} on {a.target_type}",
+            "category": "Audit",
+            "icon": "bi-shield-lock-fill text-secondary",
+            "link": "/settings/audit-logs"
+        })
+
+    # Sort descending by timestamp
+    activities.sort(key=lambda x: x["timestamp"] or datetime.min, reverse=True)
+    return activities[:limit]
+
+
+def _build_heatmap_data(client_id=None):
+    """
+    Build 7x24 matrix for ticket activity & breach density heatmap.
+    Days: 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri, 5=Sat, 6=Sun
+    Hours: 00 to 23
+    """
+    query = Ticket.query
+    if client_id:
+        query = query.filter_by(client_id=client_id)
+
+    tickets = query.all()
+
+    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    matrix = {day_idx: {hour: {"count": 0, "breached": 0} for hour in range(24)} for day_idx in range(7)}
+
+    for t in tickets:
+        if not t.created_at_source:
+            continue
+        day_idx = t.created_at_source.weekday()
+        hour = t.created_at_source.hour
+        matrix[day_idx][hour]["count"] += 1
+        if t.sla_status in (SLA_BREACHED, SLA_CLOSED_AFTER_BREACH):
+            matrix[day_idx][hour]["breached"] += 1
+
+    return {"days": days, "matrix": matrix}
+
 
 @dashboard_bp.route("/dashboard")
 @login_required
@@ -250,12 +340,78 @@ def index():
     month = request.args.get("month", type=str)
     clients = Client.query.filter_by(is_active=True).order_by(Client.name).all()
     metrics = _build_dashboard_metrics(client_id=client_id, month=month)
+    recent_activity = _get_recent_activity(limit=10)
+    heatmap_data = _build_heatmap_data(client_id=client_id)
     return render_template(
         "dashboard.html",
         metrics=metrics,
         clients=clients,
         selected_client_id=client_id,
         selected_month=month,
+        recent_activity=recent_activity,
+        heatmap_data=heatmap_data,
+    )
+
+
+@dashboard_bp.route("/clients/breakdown")
+@login_required
+@permission_required("view_dashboard")
+def client_breakdown():
+    search = request.args.get("search", "").strip()
+    sort_by = request.args.get("sort", "name").strip()
+    page = request.args.get("page", 1, type=int)
+    page = max(1, min(page, 1000))
+
+    query = Client.query.filter_by(is_active=True)
+    if search:
+        query = query.filter(Client.name.ilike(f"%{search}%"))
+
+    all_clients = query.all()
+
+    client_list = []
+    for c in all_clients:
+        c_tickets = Ticket.query.filter_by(client_id=c.id).all()
+        c_total = len(c_tickets)
+        c_open = sum(1 for t in c_tickets if t.is_open())
+        c_closed = c_total - c_open
+        c_within = sum(1 for t in c_tickets if t.sla_status in (SLA_WITHIN, SLA_CLOSED_WITHIN))
+        c_breached = sum(1 for t in c_tickets if t.sla_status in (SLA_BREACHED, SLA_CLOSED_AFTER_BREACH))
+        c_compliance = round((c_within / c_total) * 100, 1) if c_total else 0.0
+
+        client_list.append({
+            "client": c,
+            "total": c_total,
+            "open": c_open,
+            "closed": c_closed,
+            "within": c_within,
+            "breached": c_breached,
+            "compliance": c_compliance,
+        })
+
+    # Sorting
+    if sort_by == "compliance":
+        client_list.sort(key=lambda x: x["compliance"], reverse=True)
+    elif sort_by == "breached":
+        client_list.sort(key=lambda x: x["breached"], reverse=True)
+    elif sort_by == "total":
+        client_list.sort(key=lambda x: x["total"], reverse=True)
+    else:
+        client_list.sort(key=lambda x: x["client"].name.lower())
+
+    per_page = 20
+    total_items = len(client_list)
+    total_pages = max(1, (total_items + per_page - 1) // per_page)
+    start_idx = (page - 1) * per_page
+    paginated_items = client_list[start_idx:start_idx + per_page]
+
+    return render_template(
+        "client_breakdown.html",
+        clients=paginated_items,
+        page=page,
+        total_pages=total_pages,
+        total_clients=total_items,
+        current_search=search,
+        current_sort=sort_by,
     )
 
 

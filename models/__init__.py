@@ -13,6 +13,8 @@ from .field_mapping import FieldMapping
 from .report import Report
 from .setting import Setting
 from .sync_log import SyncLog
+from .holiday import Holiday
+from .audit_log import AuditLog
 
 __all__ = [
     "Client",
@@ -24,4 +26,6 @@ __all__ = [
     "Report",
     "Setting",
     "SyncLog",
+    "Holiday",
+    "AuditLog",
 ]

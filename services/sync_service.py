@@ -227,6 +227,7 @@ def _soft_delete_missing_tickets(client_id, source_system, seen_external_ids):
 
     for ticket in missing_tickets:
         ticket.status = "deleted_in_source"
+        apply_sla_to_ticket(ticket, commit=False)
         logger.info(
             "Ticket %s (client=%s) not found in IRIS response — marking as "
             "deleted_in_source.",

@@ -16,6 +16,20 @@ from routes.decorators import permission_required
 ticket_bp = Blueprint("tickets", __name__)
 
 
+def safe_int(value, default=None, min_val=None, max_val=None):
+    if value is None or str(value).strip() == "":
+        return default
+    try:
+        parsed = int(value)
+        if min_val is not None and parsed < min_val:
+            return default
+        if max_val is not None and parsed > max_val:
+            return default
+        return parsed
+    except (ValueError, TypeError):
+        return default
+
+
 @ticket_bp.route("/tickets")
 @login_required
 @permission_required("view_tickets")
@@ -23,9 +37,10 @@ def ticket_list():
     query = Ticket.query
 
     # --- Client filter (Gap #1) ---
-    client_id = request.args.get("client_id", "", type=str).strip()
+    client_id_val = request.args.get("client_id", "").strip()
+    client_id = safe_int(client_id_val, min_val=1)
     if client_id:
-        query = query.filter(Ticket.client_id == int(client_id))
+        query = query.filter(Ticket.client_id == client_id)
 
     search = request.args.get("search", "").strip()
     status = request.args.get("status", "").strip()
@@ -140,4 +155,42 @@ def send_mail_directly(ticket_id):
     else:
         flash(message, "danger")
 
+    return redirect(url_for("tickets.ticket_detail", ticket_id=ticket.id))
+
+
+VALID_BREACH_REASONS = [
+    "Vendor Delay",
+    "Customer Unresponsive",
+    "Third-Party Outage",
+    "Staff Shortage",
+    "Technical Complexity",
+    "Other",
+]
+
+
+@ticket_bp.route("/tickets/<int:ticket_id>/update-breach-reason", methods=["POST"])
+@login_required
+@permission_required("view_tickets")
+def update_breach_reason(ticket_id):
+    ticket = Ticket.query.get_or_404(ticket_id)
+    reason = request.form.get("breach_reason", "").strip()
+    custom_reason = request.form.get("custom_breach_reason", "").strip()
+    notes = request.form.get("breach_notes", "").strip()
+
+    # If custom reason is typed, prioritize it if "Custom" or "Other" or blank is selected
+    if custom_reason and (reason in ("Custom", "Other", "") or not reason):
+        final_reason = custom_reason[:100]
+    elif reason:
+        final_reason = reason[:100]
+    else:
+        final_reason = None
+
+    ticket.breach_reason = final_reason
+    ticket.breach_notes = notes or None
+    db.session.commit()
+
+    from services.audit_service import log_audit
+    log_audit("update_breach_reason", "Ticket", target_id=ticket.id, details=f"Set breach reason: '{final_reason}'")
+
+    flash("SLA breach analysis updated.", "success")
     return redirect(url_for("tickets.ticket_detail", ticket_id=ticket.id))

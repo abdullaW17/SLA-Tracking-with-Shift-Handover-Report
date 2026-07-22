@@ -32,6 +32,7 @@ class Config:
 
     # --- Database ---
     is_vercel = _bool(os.environ.get("VERCEL"))
+    # Note: /tmp path is used exclusively in the Vercel serverless environment (is_vercel == True) for ephemeral execution.
     default_db_path = "/tmp/sla_tracker.db" if is_vercel else os.path.join(basedir, "instance", "sla_tracker.db")
 
     SQLALCHEMY_DATABASE_URI = _raw_db_url or (
@@ -64,6 +65,7 @@ class Config:
     SMTP_USE_TLS = _bool(os.environ.get("SMTP_USE_TLS"), True)
 
     # --- Reports ---
+    # Note: /tmp path is used exclusively in the Vercel serverless environment (is_vercel == True) for ephemeral execution.
     default_reports_folder = "/tmp/generated_reports" if is_vercel else os.path.join(basedir, "generated_reports")
     REPORTS_FOLDER = os.environ.get("REPORTS_FOLDER") or default_reports_folder
 

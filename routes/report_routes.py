@@ -1,12 +1,7 @@
-"""
-routes/report_routes.py
---------------------------
-Report listing, generation, and download.
-"""
-
+import os
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash,
-    send_file, current_app,
+    send_file, current_app, abort,
 )
 from flask_login import login_required, current_user
 
@@ -15,6 +10,13 @@ from models.report import REPORT_TYPES
 from routes.decorators import permission_required
 
 report_bp = Blueprint("reports", __name__)
+
+
+def is_safe_path(base_directory: str, target_path: str) -> bool:
+    """Ensure target_path resolves strictly within base_directory."""
+    abs_base = os.path.abspath(base_directory)
+    abs_target = os.path.abspath(target_path)
+    return os.path.commonpath([abs_base]) == os.path.commonpath([abs_base, abs_target])
 
 
 @report_bp.route("/reports")
@@ -35,7 +37,7 @@ def generate():
     report_type = request.form.get("report_type")
     file_format = request.form.get("file_format", "pdf")
     client_id_val = request.form.get("client_id")
-    client_id = int(client_id_val) if client_id_val else None
+    client_id = int(client_id_val) if client_id_val and client_id_val.isdigit() else None
 
     if report_type not in REPORT_TYPES:
         flash("Unknown report type.", "danger")
@@ -55,4 +57,14 @@ def generate():
 @permission_required("view_reports")
 def download(report_id):
     report = Report.query.get_or_404(report_id)
+    reports_folder = current_app.config["REPORTS_FOLDER"]
+
+    if not is_safe_path(reports_folder, report.file_path):
+        current_app.logger.error(f"Unauthorized path access attempt: {report.file_path}")
+        abort(403)
+
+    if not os.path.exists(report.file_path):
+        abort(404)
+
     return send_file(report.file_path, as_attachment=True, download_name=report.report_name)
+

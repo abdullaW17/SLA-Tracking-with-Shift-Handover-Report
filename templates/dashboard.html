@@ -17,6 +17,9 @@
                 {% endfor %}
             </select>
         </form>
+        <a href="{{ url_for('dashboard.client_breakdown') }}" class="btn btn-outline-info btn-sm">
+            <i class="bi bi-building"></i> Client Breakdown (100+)
+        </a>
         <form method="POST" action="{{ url_for('tickets.trigger_recalculate') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button class="btn btn-outline-primary btn-sm" type="submit">
@@ -113,9 +116,15 @@
         </div>
 
         <!-- Received Cases Area Chart -->
-        <div class="card p-3">
+        <div class="card p-3 mb-3">
             <h6><i class="bi bi-graph-up me-1"></i> Received Cases</h6>
             <canvas id="receivedChart" height="160"></canvas>
+        </div>
+
+        <!-- Monthly SLA Trend -->
+        <div class="card p-3 shadow-sm border-0 mb-3">
+            <h6 class="fw-bold mb-2"><i class="bi bi-graph-up-arrow text-primary me-2"></i>Monthly SLA Trend</h6>
+            <canvas id="trendChart" height="160"></canvas>
         </div>
     </div>
 
@@ -145,20 +154,44 @@
             <canvas id="taxonomyChart" height="160"></canvas>
         </div>
 
-        <!-- Client Breakdown -->
-        {% if metrics.client_counts %}
-        <div class="card p-3">
-            <h6><i class="bi bi-building me-1"></i> Client Breakdown</h6>
-            <div class="d-flex flex-column gap-2">
-                {% for client_name, count in metrics.client_counts.items() %}
-                <div class="client-mini-card">
-                    <span class="client-name"><i class="bi bi-building me-1"></i> {{ client_name }}</span>
-                    <span class="client-count">{{ count }}</span>
+        <!-- SLA Breach Root Cause Analysis -->
+        <div class="card p-3 shadow-sm border-0">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="fw-bold mb-0"><i class="bi bi-pie-chart-fill text-danger me-2"></i>SLA Breach Root Cause Analysis</h6>
+                <small class="text-muted" style="font-size:0.72rem;">Breach Categorization</small>
+            </div>
+            <div style="height: 185px; position: relative;">
+                <canvas id="breachReasonChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Scrollable Recent Activity Timeline -->
+        <div class="card p-3 shadow-sm border-0 mt-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="fw-bold mb-0"><i class="bi bi-clock-history text-primary me-2"></i>Recent Activity Timeline</h6>
+                <span class="badge bg-light text-dark" style="font-size:0.68rem;">Live Updates</span>
+            </div>
+            <div class="activity-timeline" style="max-height: 220px; overflow-y: auto; padding-right: 6px;">
+                {% for act in recent_activity %}
+                <div class="d-flex align-items-start mb-2 pb-2 border-bottom">
+                    <div class="me-2 fs-6">
+                        <i class="bi {{ act.icon }}"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{{ act.link }}" class="fw-semibold text-decoration-none text-dark small" style="font-size:0.82rem;">{{ act.title }}</a>
+                            <span class="badge bg-light text-muted ms-2" style="font-size:0.65rem;">{{ act.category }}</span>
+                        </div>
+                        <small class="text-muted d-block" style="font-size:0.7rem;">
+                            {{ act.timestamp.strftime('%Y-%m-%d %H:%M:%S') if act.timestamp else 'Recently' }}
+                        </small>
+                    </div>
                 </div>
+                {% else %}
+                <p class="text-muted small mb-0 py-2">No recent system activity logged.</p>
                 {% endfor %}
             </div>
         </div>
-        {% endif %}
     </div>
 
     <!-- ────────── RIGHT PANEL ────────── -->
@@ -250,12 +283,6 @@
         </div>
     </div>
 </div>
-
-<!-- ===== Monthly SLA Trend (full width below grid) ===== -->
-<div class="card p-3 mt-3">
-    <h6><i class="bi bi-graph-up-arrow me-1"></i> Monthly SLA Trend</h6>
-    <canvas id="trendChart" height="100"></canvas>
-</div>
 {% endblock %}
 
 {% block scripts %}
@@ -329,6 +356,45 @@ new Chart(document.getElementById('taxonomyChart'), {
         scales: {
             x: { grid: { color: '#e8ecf1' }, ticks: { color: '#5a6a7e' } },
             y: { grid: { display: false }, ticks: { color: '#2c3e50', font: { weight: 600 } } }
+        }
+    }
+});
+
+/* — Doughnut: SLA Breach Root Cause Analysis — */
+const breachData = metrics.breach_reason_distribution || {};
+const breachLabels = Object.keys(breachData);
+const breachCounts = Object.values(breachData);
+
+new Chart(document.getElementById('breachReasonChart'), {
+    type: 'doughnut',
+    data: {
+        labels: breachLabels.length ? breachLabels : ['No Breaches Logged'],
+        datasets: [{
+            data: breachCounts.length ? breachCounts : [1],
+            backgroundColor: breachLabels.length ? [
+                '#dc3545', '#fd7e14', '#ffc107', '#6f42c1', '#0d6efd', '#20c997', '#6c757d'
+            ] : ['#e9ecef'],
+            borderColor: '#ffffff',
+            borderWidth: 2
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '55%',
+        plugins: {
+            legend: {
+                position: 'right',
+                labels: { font: { size: 11 }, boxWidth: 12 }
+            },
+            tooltip: {
+                backgroundColor: '#ffffff',
+                titleColor: '#1a2980',
+                bodyColor: '#2c3e50',
+                borderColor: '#d5dde8',
+                borderWidth: 1,
+                cornerRadius: 8
+            }
         }
     }
 });

@@ -36,14 +36,26 @@ def rule_list():
 
 
 def _form_to_rule_fields(form):
+    def safe_parse_int(val, default=0):
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return default
+
+    resp_sla_raw = form.get("response_sla_minutes")
+    resp_sla = safe_parse_int(resp_sla_raw, None) if resp_sla_raw and str(resp_sla_raw).strip() != "" else None
+
+    res_sla = safe_parse_int(form.get("resolution_sla_minutes"), 0)
+    thresh = safe_parse_int(form.get("warning_threshold_percent"), 80)
+    prio = safe_parse_int(form.get("priority"), 0)
+
     return dict(
         client_id=int(form.get("client_id")) if form.get("client_id") else None,
-        rule_name=form.get("rule_name", "").strip(),
-        priority=int(form.get("priority", 0) or 0),
-        response_sla_minutes=(int(form["response_sla_minutes"])
-                               if form.get("response_sla_minutes") else None),
-        resolution_sla_minutes=int(form.get("resolution_sla_minutes", 0) or 0),
-        warning_threshold_percent=int(form.get("warning_threshold_percent", 80) or 80),
+        rule_name=form.get("rule_name", "").strip()[:150],
+        priority=max(0, min(prio, 10000)),
+        response_sla_minutes=resp_sla,
+        resolution_sla_minutes=res_sla,
+        warning_threshold_percent=max(1, min(thresh, 99)),
         business_hours_only=form.get("business_hours_only") == "on",
         applies_to_status=form.get("applies_to_status", "").strip() or None,
         stop_status=form.get("stop_status", "").strip() or None,
@@ -114,6 +126,12 @@ def rule_create():
         if not conditions_data:
             flash("At least one matching condition is required.", "danger")
             return render_template("sla_rule_form.html", rule=fields, clients=clients, classifications=classifications, field_options=field_options)
+        if fields["resolution_sla_minutes"] <= 0:
+            flash("Resolution SLA minutes must be greater than 0.", "danger")
+            return render_template("sla_rule_form.html", rule=fields, clients=clients, classifications=classifications, field_options=field_options)
+        if fields["response_sla_minutes"] is not None and fields["response_sla_minutes"] < 0:
+            flash("Response SLA minutes cannot be negative.", "danger")
+            return render_template("sla_rule_form.html", rule=fields, clients=clients, classifications=classifications, field_options=field_options)
         if fields["response_sla_minutes"] is not None and fields["response_sla_minutes"] >= fields["resolution_sla_minutes"]:
             flash("Response SLA minutes must be less than Resolution SLA minutes.", "danger")
             return render_template("sla_rule_form.html", rule=fields, clients=clients, classifications=classifications, field_options=field_options)
@@ -130,6 +148,10 @@ def rule_create():
 
         db.session.add(rule)
         db.session.commit()
+
+        from services.audit_service import log_audit
+        log_audit("create_sla_rule", "SLARule", target_id=rule.id, details=f"Created SLA rule '{rule.rule_name}'")
+
         flash(f"SLA rule '{rule.rule_name}' created.", "success")
         return redirect(url_for("sla_rules.rule_list"))
 
@@ -169,6 +191,12 @@ def rule_edit(rule_id):
             return render_template("sla_rule_form.html", rule=rule, clients=clients, classifications=classifications, field_options=field_options)
         if not conditions_data:
             flash("At least one matching condition is required.", "danger")
+            return render_template("sla_rule_form.html", rule=rule, clients=clients, classifications=classifications, field_options=field_options)
+        if fields["resolution_sla_minutes"] <= 0:
+            flash("Resolution SLA minutes must be greater than 0.", "danger")
+            return render_template("sla_rule_form.html", rule=rule, clients=clients, classifications=classifications, field_options=field_options)
+        if fields["response_sla_minutes"] is not None and fields["response_sla_minutes"] < 0:
+            flash("Response SLA minutes cannot be negative.", "danger")
             return render_template("sla_rule_form.html", rule=rule, clients=clients, classifications=classifications, field_options=field_options)
         if fields["response_sla_minutes"] is not None and fields["response_sla_minutes"] >= fields["resolution_sla_minutes"]:
             flash("Response SLA minutes must be less than Resolution SLA minutes.", "danger")

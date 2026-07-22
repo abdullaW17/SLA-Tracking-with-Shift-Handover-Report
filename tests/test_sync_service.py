@@ -196,10 +196,12 @@ class TestSoftDeleteMissingTickets:
             assert deleted == 1
             t2_updated = Ticket.query.filter_by(external_id="CASE-B").first()
             assert t2_updated.status == "deleted_in_source"
+            assert not t2_updated.is_open()
 
             # CASE-A should be untouched
             t1_updated = Ticket.query.filter_by(external_id="CASE-A").first()
             assert t1_updated.status == "open"
+            assert t1_updated.is_open()
 
 
 class TestCustomAttributesParsing:

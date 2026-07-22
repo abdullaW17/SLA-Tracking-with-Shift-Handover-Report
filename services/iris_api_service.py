@@ -46,6 +46,18 @@ _RETRYABLE_EXCEPTIONS = (
 )
 
 
+from urllib.parse import urlparse
+
+def is_valid_external_url(url: str) -> bool:
+    if not url:
+        return False
+    try:
+        parsed = urlparse(url)
+        return parsed.scheme in ("http", "https") and bool(parsed.netloc)
+    except Exception:
+        return False
+
+
 def _get_config():
     """Pulls IRIS connection settings from Flask config (env-driven), with
     DB-stored Setting overrides taking precedence if present."""
@@ -56,8 +68,8 @@ def _get_config():
     verify_ssl = current_app.config.get("IRIS_VERIFY_SSL", True)
     timeout = current_app.config.get("IRIS_TIMEOUT_SECONDS", 30)
 
-    if not base_url:
-        raise IrisApiError("IRIS base URL is not configured. Set IRIS_BASE_URL in .env or Settings.")
+    if not base_url or not is_valid_external_url(base_url):
+        raise IrisApiError("IRIS base URL is invalid or not configured. Use a valid HTTP/HTTPS URL.")
     if not api_key:
         raise IrisApiError("IRIS API key is not configured. Set IRIS_API_KEY in .env.")
 

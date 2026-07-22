@@ -203,9 +203,11 @@ def calculate_sla_percentage(ticket):
 
 def _is_closed(ticket, sla_rule):
     """A ticket is considered closed for SLA purposes if it has a
-    closed_at_source timestamp, OR its status matches the rule's
-    configured stop_status list."""
+    closed_at_source timestamp, OR its status is deleted_in_source,
+    OR its status matches the rule's configured stop_status list."""
     if ticket.closed_at_source is not None:
+        return True
+    if ticket.status and ticket.status.strip().lower() in ("deleted_in_source", "cancelled", "deleted"):
         return True
     if sla_rule and ticket.status:
         stop_statuses = sla_rule.stop_status_list()
@@ -319,7 +321,7 @@ def calculate_sla_status(ticket):
         else:
             status = SLA_WITHIN
     elif is_closed:
-        closed_time = _as_aware(ticket.closed_at_source) or now
+        closed_time = _as_aware(ticket.closed_at_source) or _as_aware(ticket.last_synced_at) or _as_aware(ticket.updated_at) or now
         status = SLA_CLOSED_WITHIN if closed_time <= _as_aware(resolution_deadline) else SLA_CLOSED_AFTER_BREACH
     else:
         if now > _as_aware(resolution_deadline):
@@ -353,7 +355,8 @@ def recalculate_all_open_tickets():
     Returns a summary dict for logging/UI feedback.
     """
     tickets = Ticket.query.filter(
-        Ticket.sla_status.notin_([SLA_CLOSED_WITHIN, SLA_CLOSED_AFTER_BREACH])
+        Ticket.sla_status.notin_([SLA_CLOSED_WITHIN, SLA_CLOSED_AFTER_BREACH]),
+        Ticket.status != "deleted_in_source"
     ).all()
 
     counts = {SLA_WITHIN: 0, SLA_NEAR_BREACH: 0, SLA_BREACHED: 0,

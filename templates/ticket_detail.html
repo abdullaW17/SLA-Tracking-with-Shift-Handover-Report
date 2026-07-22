@@ -53,6 +53,37 @@
     </div>
 </div>
 
+<!-- SLA Breach Root Cause Tagging Form -->
+<div class="card p-3 mt-4 border-start border-4 border-danger shadow-sm">
+    <h6 class="fw-bold"><i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>SLA Breach Root Cause Tagging</h6>
+    <p class="text-muted small mb-3">Categorize the root cause of SLA delay for executive reporting and dashboard analytics.</p>
+    <form method="POST" action="{{ url_for('tickets.update_breach_reason', ticket_id=ticket.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="row g-3">
+            <div class="col-md-5">
+                <label class="form-label small fw-bold">Root Cause Category</label>
+                <select name="breach_reason" class="form-select form-select-sm mb-2" id="breachReasonSelect">
+                    <option value="">-- Select Root Cause Category --</option>
+                    <option value="Vendor Delay" {% if ticket.breach_reason == 'Vendor Delay' %}selected{% endif %}>Vendor Delay</option>
+                    <option value="Customer Unresponsive" {% if ticket.breach_reason == 'Customer Unresponsive' %}selected{% endif %}>Customer Unresponsive</option>
+                    <option value="Third-Party Outage" {% if ticket.breach_reason == 'Third-Party Outage' %}selected{% endif %}>Third-Party Outage</option>
+                    <option value="Staff Shortage" {% if ticket.breach_reason == 'Staff Shortage' %}selected{% endif %}>Staff Shortage</option>
+                    <option value="Technical Complexity" {% if ticket.breach_reason == 'Technical Complexity' %}selected{% endif %}>Technical Complexity</option>
+                    <option value="Custom" {% if ticket.breach_reason and ticket.breach_reason not in ['Vendor Delay', 'Customer Unresponsive', 'Third-Party Outage', 'Staff Shortage', 'Technical Complexity'] %}selected{% endif %}>Custom / Type Below...</option>
+                </select>
+                <input type="text" name="custom_breach_reason" id="customBreachReasonInput" class="form-control form-control-sm" placeholder="Or type custom root cause here..." value="{{ ticket.breach_reason if ticket.breach_reason and ticket.breach_reason not in ['Vendor Delay', 'Customer Unresponsive', 'Third-Party Outage', 'Staff Shortage', 'Technical Complexity'] else '' }}">
+            </div>
+            <div class="col-md-7">
+                <label class="form-label small fw-bold">Root Cause Analysis Notes</label>
+                <textarea name="breach_notes" class="form-control form-control-sm" rows="2" placeholder="Describe delay investigation details or justification...">{{ ticket.breach_notes or '' }}</textarea>
+            </div>
+        </div>
+        <div class="mt-3 text-end">
+            <button type="submit" class="btn btn-sm btn-danger px-3"><i class="bi bi-save me-1"></i> Save Root Cause Analysis</button>
+        </div>
+    </form>
+</div>
+
 <div class="card p-3 mt-4">
     <h6><i class="bi bi-code-slash me-1"></i> Raw Source Payload</h6>
     <pre class="small p-3 rounded" style="max-height: 300px; overflow:auto;">{{ ticket.raw_payload_json or 'No raw payload stored.' }}</pre>

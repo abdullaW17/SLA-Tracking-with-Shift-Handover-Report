@@ -83,6 +83,10 @@ class Ticket(db.Model):
     # Accumulated total pause time across all pause/unpause cycles.
     total_paused_minutes = db.Column(db.Integer, nullable=False, default=0)
 
+    # --- Breach Root Cause Tagging ---
+    breach_reason = db.Column(db.String(100), nullable=True, index=True)
+    breach_notes = db.Column(db.Text, nullable=True)
+
     # --- Notification flags ---
     near_breach_notified = db.Column(db.Boolean, default=False, nullable=False)
     breach_notified = db.Column(db.Boolean, default=False, nullable=False)
@@ -120,6 +124,9 @@ class Ticket(db.Model):
     def is_open(self):
         if not self.status:
             return True
+        status_lower = self.status.strip().lower()
+        if status_lower in ("deleted_in_source", "closed", "resolved", "cancelled", "deleted"):
+            return False
         return self.closed_at_source is None
 
     def __repr__(self):
