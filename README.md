@@ -1,297 +1,209 @@
-# Automated SLA Tracking and Report Generation System
+# 🛡️ Enterprise Automated SLA Tracking & Executive Reporting System
 
-A production-ready, multi-tenant SLA tracking system designed to integrate seamlessly with the **DFIR-IRIS** incident response platform. 
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Framework](https://img.shields.io/badge/framework-Flask%203.x-green.svg)](https://flask.palletsprojects.com/)
+[![SLA Engine](https://img.shields.io/badge/engine-Multi--Tenant%20SLA-purple.svg)]()
+[![ReportLab PDF](https://img.shields.io/badge/reports-Portrait%20A4%20PDF-red.svg)]()
+[![Security Audit](https://img.shields.io/badge/security-OWASP%20Top%2010%20Hardened-brightgreen.svg)]()
 
-This system acts as a middleware layer that normalizes cases/alerts fetched from DFIR-IRIS, evaluates them against client-specific SLA rules, tracks response and resolution deadlines dynamically, and provides an administrative interface for dashboards, reports, and SLA configurations.
-
----
-
-## 1. Key Architectural Concepts
-
-The core architecture of the system is built around four fundamental design goals:
-
-### A. Dynamic, Database-Driven SLA Rules
-No severity, priority, or urgency taxonomies are hardcoded in the codebase. SLA rules are stored entirely in the database as generic matches.
-* When a ticket is normalized, the engine evaluates rules dynamically by performing:
-  ```python
-  ticket_value = getattr(ticket, rule.field_name)
-  ```
-  It compares this value against `rule.field_value`.
-* This allows the system to easily support any taxonomy defined by an organization (e.g. Critical/High/Medium/Low, P1-P4, Sev1-Sev5) purely through database rows, without code changes.
-
-### B. Multi-Tenancy Scoping
-The system is built from the ground up for multi-tenant service providers (MSSPs).
-* Every entity (`Ticket`, `SLARule`, `FieldMapping`) is anchored to a specific `Client` through a `client_id` foreign key.
-* During IRIS synchronization, incoming tickets are routed to their respective clients by matching the IRIS payload `case_customer_id` with `Client.iris_customer_id`.
-* The rule evaluation engine scopes queries to the matching `client_id`, ensuring client rules never collide or leak.
-
-### C. Precision Business Hours SLA Engine
-Standard "wall-clock" calculations are insufficient for business-hour SLAs.
-* If a rule has `business_hours_only` enabled, deadline calculations utilize client-specific calendars.
-* Business minutes are counted sequentially through active working windows, omitting nights, weekends, and client-specific off-hours.
-* Timezone operations are strictly normalized: all internal datetimes are stored and compared in UTC, while display conversions translate to the client's local timezone (e.g., `Asia/Karachi`).
-
-### D. Pause/Resume Deadline Shifting
-Incidents often enter pending or paused states (e.g. "Awaiting Customer Feedback" or "Under Vendor Investigation").
-* When a ticket enters an IRIS status classified as a pause state, the system records `paused_at`.
-* Upon resuming, the elapsed time is added to `total_paused_minutes`, and the response/resolution deadlines are shifted forward by that exact delta. This prevents false breach alerts caused by third-party delays.
+A production-ready, multi-tenant **SLA Tracking & Executive Shift Handover Reporting Middleware** built for Managed Security Service Providers (MSSPs) and Incident Response teams integrating with **DFIR-IRIS**.
 
 ---
 
-## 2. Project Directory Structure
+## 🌟 Key Features
 
-The codebase is organized logically as a standard Flask application package:
+### 🔔 Real-Time SLA Alerting & Notification Bell
+- **Navbar Bell Dropdown**: Live unread badge count surfacing critical SLA alerts across all pages.
+- **Urgency Categorization**:
+  - ⚠️ **Near Breach (Amber)**: Live minute-by-minute countdown warnings for tickets nearing resolution deadlines.
+  - 🚨 **Breached SLA (Red)**: Immediate notification for breached cases showing exact breach duration.
+- **Direct Investigation Links**: One-click navigation to ticket details for immediate triage.
+
+### 📊 Executive Reporting Engine (Portrait A4 PDF & Excel)
+- **Portrait A4 PDF Standard**: Engineered with ReportLab `NumberedCanvas` for clean `Page X of Y` rendering.
+- **Corporate Branding**: Headers & footers feature company logo branding (`static/images/image.png`).
+- **Target Client Metadata**: Displays specific client scoping or all-client aggregates.
+- **KPI Summary Cards**: Total Incidents, SLA Compliance Rate, Breached Count, and Mean Time to Resolution (MTTR).
+
+### 🍩 SLA Breach Root Cause Tagging & Analytics
+- **Root Cause Classification**: Tag breached cases with categories (*Vendor Delay*, *Customer Unresponsive*, *Third-Party Outage*, *Staff Shortage*, *Technical Complexity*, or *Custom*).
+- **Interactive Doughnut Chart**: Live visual breakdown on the executive dashboard to identify operational bottlenecks.
+- **Audit Notes**: Field for recording investigation details for client shift handovers.
+
+### ⏰ Business Hours & Pause/Resume SLA Engine
+- **Custom Business Calendars**: Computes SLA deadlines strictly within working hours (e.g., Mon–Fri 09:00–18:00 PKT), skipping nights, weekends, and holidays.
+- **Clock Shifting on Pause**: When tickets enter pending/paused states (*Awaiting Customer*, *Vendor Hold*), deadlines shift forward dynamically to protect SLA integrity.
+
+### 🛡️ Enterprise Security & RBAC Isolation
+- **Role-Based Access Control**:
+  - 👑 **Admin**: Full system access (settings, field mappings, SLA rules, client CRUD, audit logs).
+  - 👔 **Manager**: Operations management (ticket view, SLA recalculations, root cause tagging, report generation).
+  - 👁️ **Viewer**: Read-only stakeholder monitoring.
+- **OWASP Top 10 Hardened**: Includes brute-force login lockout, CSRF protection, security headers (`X-Frame-Options`, `CSP`), and restricted raw payload debugging.
+
+---
+
+## 🏗️ System Architecture
+
+```mermaid
+graph TD
+    A[DFIR-IRIS Platform API] -->|Case & Alert Ingestion| B[Sync Engine / APScheduler]
+    B --> C[Field Mapping & Normalization]
+    C --> D[Multi-Tenant Client Scoping]
+    D --> E[Business Hours & SLA Engine]
+    E --> F[(SQLite / PostgreSQL DB)]
+    F --> G[Executive Dashboard]
+    F --> H[Portrait A4 PDF & Excel Reports]
+    F --> I[SMTP Breach Email Alerts]
+    F --> J[Real-Time Notification Bell]
+```
+
+---
+
+## 👥 Role Permission Matrix
+
+| Feature / Action | Admin | Manager | Viewer |
+| :--- | :---: | :---: | :---: |
+| **View Dashboard & SLA Metrics** | ✅ Yes | ✅ Yes | ✅ Yes |
+| **View Tickets & SLA Timelines** | ✅ Yes | ✅ Yes | ✅ Yes |
+| **View Generated Reports & Download** | ✅ Yes | ✅ Yes | ✅ Yes |
+| **Update SLA Breach Root Cause** | ✅ Yes | ✅ Yes | 🔒 Read-Only |
+| **Generate New PDF & Excel Reports** | ✅ Yes | ✅ Yes | 🔒 Restricted |
+| **Manage SLA Rules & Conditions** | ✅ Yes | 🔒 Restricted | 🔒 Restricted |
+| **Manage Clients (Create, Edit, Delete, Toggle)** | ✅ Yes | 🔒 Restricted | 🔒 Restricted |
+| **Manage System Settings & IRIS Integration** | ✅ Yes | 🔒 Restricted | 🔒 Restricted |
+| **Manage Holiday Calendar & View Audit Logs** | ✅ Yes | 🔒 Restricted | 🔒 Restricted |
+
+---
+
+## 📁 Project Structure
 
 ```text
 automated-sla-tracker/
-├── app.py                          # Flask application factory and entry point
-├── config.py                       # Configuration classes loading from environment
-├── extensions.py                   # Shared Flask extensions (avoids circular imports)
-├── cli.py                          # Custom Flask CLI commands registration
-├── requirements.txt                # Python dependencies list
-├── .env.example                    # Template file for environment variables
-├── .gitignore                      # Git exclusion rules
-├── scripts/                        # Relocated standalone utility/admin scripts
-│   ├── seed_data.py                # Standalone DB seeder
-│   ├── clear_seed_data.py          # Standalone DB cleaner
-│   └── fix_field_mappings.py       # Standalone field mappings script
-├── models/                         # Database models (SQLAlchemy ORM)
-│   ├── client.py                   # Client (multi-tenancy anchor, timezone, business hours)
-│   ├── user.py                     # User account details and RBAC permission matrix
-│   ├── ticket.py                   # Local normalized tickets and SLA thresholds
-│   ├── sla_rule.py                 # SLA rule conditions and priority ranks
-│   ├── field_mapping.py            # Local-to-source-system key maps
-│   ├── report.py                   # PDF/Excel report audit log
-│   ├── setting.py                  # Key/value runtime system settings
-│   └── sync_log.py                 # Historical synchronization records
-├── services/                       # Business logic and external API integrations
-│   ├── iris_api_service.py         # DFIR-IRIS REST API Client
-│   ├── field_mapping_service.py    # Ticket normalization and field translation service
-│   ├── sla_calculator.py           # Core SLA evaluation, pause logic, and business hours math
-│   ├── sync_service.py             # Orchestrates Fetch -> Normalize -> Evaluate -> Save lifecycle
-│   ├── report_generator.py         # PDF (ReportLab) and Excel (Pandas) generation engine
-│   ├── scheduler_service.py        # Background jobs using APScheduler
-│   └── email_service.py            # SMTP notification client for breaches
-├── routes/                         # Flask blueprints (controllers)
-│   ├── decorators.py               # RBAC permission checking decorators
-│   ├── auth_routes.py              # Login, lockout, and password change endpoints
-│   ├── dashboard_routes.py         # Performance charts and analytics views
-│   ├── ticket_routes.py            # Ticket search, filter, and detail views
+├── app.py                          # Flask application factory & context processors
+├── config.py                       # Application configuration from .env
+├── extensions.py                   # Shared Flask extensions (SQLAlchemy, Login, CSRF)
+├── cli.py                          # Custom Flask CLI management commands
+├── models/                         # Database ORM Schemas
+│   ├── client.py                   # Multi-tenancy anchor, timezone & business hours
+│   ├── user.py                     # RBAC users & permission matrix
+│   ├── ticket.py                   # Local normalized tickets & SLA thresholds
+│   ├── sla_rule.py                 # Dynamic SLA rules & conditions
+│   ├── field_mapping.py            # Local-to-IRIS field translation map
+│   ├── report.py                   # Generated report audit history
+│   └── setting.py                  # Runtime configuration settings
+├── services/                       # Core Business Logic & Engines
+│   ├── iris_api_service.py         # DFIR-IRIS REST API integration client
+│   ├── sla_calculator.py           # Business hours deadline & pause math engine
+│   ├── report_generator.py         # ReportLab Portrait A4 PDF & Excel generator
+│   ├── sync_service.py             # Case ingestion & normalization pipeline
+│   ├── email_service.py            # SMTP breach alert notifier
+│   └── scheduler_service.py        # Background APScheduler service
+├── routes/                         # Application Controllers (Blueprints)
+│   ├── auth_routes.py              # Authentication & login rate limiter
+│   ├── dashboard_routes.py         # Executive dashboard & metrics endpoints
+│   ├── ticket_routes.py            # Ticket management & root cause tagging
 │   ├── sla_rule_routes.py          # SLA rules CRUD management
-│   ├── report_routes.py            # Report generation and download triggers
-│   └── settings_routes.py          # General settings mapping and connection tests
-├── templates/                      # Jinja2 HTML templates styled with Bootstrap 5
-├── static/                         # Static assets directory
-│   ├── css/style.css               # Core styling sheet
-│   └── images/                     # Served image and logo files
-├── instance/                       # Default folder for local SQLite database
-└── generated_reports/              # Storage directory for output PDF/Excel reports
+│   ├── report_routes.py            # Report generation, download & deletion
+│   └── settings_routes.py          # Settings, Client CRUD & Holiday Calendar
+├── templates/                      # Jinja2 HTML5 Responsive Templates
+└── tests/                          # Comprehensive Pytest Suite (95 Unit Tests)
 ```
 
 ---
 
-## 3. Configuration Reference (.env)
+## ⚙️ Environment Configuration (`.env`)
 
-The application is configured dynamically using environment variables. Below is the list of available configuration parameters:
+Copy `.env.example` to `.env` and configure key variables:
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `SECRET_KEY` | String | `dev-secret-key-change-me` | Key used by Flask to encrypt session cookies. Change in production. |
-| `DATABASE_URL` | String | *SQLite default* | Database connection string. Use `postgresql://...` for PostgreSQL. |
-| `FLASK_ENV` | String | `development` | Operating environment: `development` or `production`. |
-| `IRIS_BASE_URL` | String | *None* | Base URL of your DFIR-IRIS instance (e.g. `https://iris.example.com`). |
-| `IRIS_API_KEY` | String | *None* | API key for authenticating with the DFIR-IRIS REST API. |
-| `IRIS_VERIFY_SSL` | Boolean | `True` | Set to `False` if your local IRIS server uses self-signed certificates. |
-| `IRIS_TIMEOUT_SECONDS`| Integer | `30` | Network request timeout for IRIS API queries. |
-| `SYNC_INTERVAL_MINUTES`| Integer| `15` | Interval in minutes at which the background sync job runs. |
-| `SCHEDULER_ENABLED` | Boolean | `True` | Set to `False` to prevent the background scheduler from starting. |
-| `DAILY_REPORT_ENABLED`| Boolean | `False` | Automatically generate a PDF summary report every day. |
-| `DAILY_REPORT_HOUR` | Integer | `7` | Hour (0-23 UTC) at which the daily report is generated. |
-| `DEFAULT_TIMEZONE` | String | `UTC` | Timezone fallback when a client's timezone is unspecified. |
-| `EMAIL_NOTIFICATIONS_ENABLED` | Boolean | `False` | Enable SMTP-based email alerts for SLA warnings and breaches. |
-| `SMTP_HOST` | String | *None* | Hostname of the outgoing SMTP email server. |
-| `SMTP_PORT` | Integer | `587` | Connection port for the SMTP email server. |
-| `SMTP_USER` | String | *None* | Username for SMTP authentication. |
-| `SMTP_PASSWORD` | String | *None* | Password for SMTP authentication. |
-| `SMTP_FROM_EMAIL` | String | *None* | Outbound email sender address. |
-| `SMTP_USE_TLS` | Boolean | `True` | Enforce TLS encryption for SMTP connections. |
-| `REPORTS_FOLDER` | String | `generated_reports`| Local path where PDF and Excel reports are saved. |
+```env
+# Flask App Settings
+SECRET_KEY=your-secure-random-secret-key
+FLASK_ENV=development
+DATABASE_URL=sqlite:///instance/sla_tracker.db
+
+# DFIR-IRIS Integration
+IRIS_BASE_URL=https://iris.example.com
+IRIS_API_KEY=your_secured_api_key_here
+IRIS_VERIFY_SSL=True
+SYNC_INTERVAL_MINUTES=15
+
+# SMTP Email Alerting
+EMAIL_NOTIFICATIONS_ENABLED=True
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=alerts@example.com
+SMTP_PASSWORD=your_smtp_password
+SMTP_FROM_EMAIL=alerts@example.com
+```
 
 ---
 
-## 4. Setup and Run Instructions
+## 🚀 Quick Start Guide
 
-### Prerequisites
-* Python 3.10+
-* pip
-* Git
-
-### Step-by-Step Installation
-
+### 1. Clone & Environment Setup
 ```bash
-# 1. Clone the project and navigate inside it
+# Clone the repository
 git clone https://github.com/abdullaW17/SLA-Tracking-with-Shift-Handover-Report.git
 cd SLA-Tracking-with-Shift-Handover-Report
 
-# 2. Create and activate a Python virtual environment
+# Create virtual environment
 python -m venv venv
-source venv/bin/activate       # On Windows: venv\Scripts\activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# 3. Install required packages
+# Install dependencies
 pip install -r requirements.txt
-
-# 4. Copy the environment template and edit configuration
-cp .env.example .env
-# Edit the .env file with your specific configurations
 ```
 
----
-
-## 5. Command-Line Interface (CLI) Usage
-
-The application includes custom Flask CLI commands registered under the standard Flask runner for administrative tasks.
-
-### Seeding the Database
-To create database tables, seed the default RBAC roles/users, set default IRIS mappings, and run an initial sync:
+### 2. Database Initialization & Seeding
 ```bash
+# Seed initial database schemas, roles, and demo users
 flask seed
 ```
-*Note: This can also be executed as a standalone script using `python scripts/seed_data.py`.*
 
-#### Seed Demo Login Accounts:
-| Username | Password | Role | Permissions |
-|----------|----------|------|-------------|
-| `admin` | `Admin123!` | Admin | Full Access |
-| `manager`| `Manager123!`| Manager | Dashboard, Tickets, Reports |
-| `viewer` | `Viewer123!` | Viewer | Read-only Dashboard and Tickets |
+#### Demo User Accounts:
+| Role | Username | Password | Access Level |
+| :--- | :--- | :--- | :--- |
+| **Administrator** | `admin` | `Admin123!` | Full System Control |
+| **Manager** | `manager` | `Manager123!` | Operations & Reporting |
+| **Viewer** | `viewer` | `Viewer123!` | Read-Only Monitoring |
 
-*Warning: Ensure you update these passwords via the user settings page before moving to production.*
+> [!CAUTION]
+> Always change default passwords in production environments!
 
-### Clearing Seeded Data
-To remove seeded clients, SLA rules, and tickets while leaving system settings and user accounts intact:
-```bash
-flask clear-seed
-```
-*Note: Standalone alternative: `python scripts/clear_seed_data.py`.*
-
-### Updating/Repairing Mappings
-If the sync payload keys returned by your DFIR-IRIS instance do not match local defaults:
-```bash
-flask fix-mappings
-```
-*Note: Standalone alternative: `python scripts/fix_field_mappings.py`.*
-
----
-
-## 6. Development & Run Commands
-
-### Running Locally
-To launch the development server (with scheduler job triggers active):
+### 3. Running the Server
 ```bash
 python app.py
 ```
-Or use the standard Flask CLI runner:
+Access the web dashboard at: `http://localhost:5000`
+
+---
+
+## 🧪 Testing & Verification
+
+Run the full automated test suite containing **95 verified unit & integration tests**:
+
 ```bash
-flask run --port=5000
+pytest -v
 ```
 
-### Running Tests
-To run unit and integration tests (such as calculators and synchronization services):
-```bash
-pytest
-```
+---
+
+## 🌐 Production Deployment
+
+### Vercel (Serverless Deployment)
+This repository includes a production-ready `vercel.json`:
+1. Connect your repository in the [Vercel Dashboard](https://vercel.com/new).
+2. Configure Environment Variables (`DATABASE_URL`, `SECRET_KEY`, `IRIS_BASE_URL`, `IRIS_API_KEY`).
+3. Deploy!
+
+### Render (Containerized Web Service)
+This repository includes a `render.yaml` Blueprint specification:
+1. Create a new Blueprint on [Render](https://dashboard.render.com/blueprints).
+2. Connect your GitHub repository.
+3. Render automatically provisions a Python Web Service running `gunicorn app:app`.
 
 ---
 
-## 7. Connecting to a Live DFIR-IRIS Server
-
-1. Open your `.env` configuration file.
-2. Provide the base URL and API token:
-   ```env
-   IRIS_BASE_URL=https://your-iris-domain.com
-   IRIS_API_KEY=your_secured_api_key_here
-   ```
-3. Boot the Flask app and log in as `admin`.
-4. Navigate to **Settings -> Test IRIS Connection** in the navigation bar to test connectivity.
-5. If successful, review the **Field Mappings** page to verify mapping definitions match your IRIS instance fields (e.g. `severity` maps to `classification`).
-6. Click **Sync from IRIS** on the Tickets page to ingest your current cases.
-
----
-
-## 8. Database Migration to PostgreSQL
-
-To swap from the default local SQLite database to a production PostgreSQL database:
-
-1. Install the PostgreSQL database adapter:
-   ```bash
-   pip install psycopg2-binary
-   ```
-2. Modify `DATABASE_URL` in your `.env` file:
-   ```env
-   DATABASE_URL=postgresql+psycopg2://username:password@localhost:5432/db_name
-   ```
-3. Initialize the tables on your database server:
-   ```bash
-   flask seed
-   ```
-   *(Or run migrations using: `flask db upgrade` if upgrading an existing schema)*
-
----
-
-## 9. Deployment Guide (Vercel & Render)
-
-### Deploying to Vercel
-This repository includes a pre-configured [vercel.json](file:///c:/Users/ma420/Downloads/automated-sla-tracker/automated-sla-tracker/vercel.json) file designed for Vercel Python Serverless Functions.
-
-1. **Import Project**: Go to the [Vercel Dashboard](https://vercel.com/new) and import your GitHub repository.
-2. **Environment Variables**: In the Vercel project settings, set:
-   * `SECRET_KEY`: Set a secure random secret key string.
-   * `DATABASE_URL`: (Recommended) Connect a managed PostgreSQL instance (e.g., Supabase, Neon, or Vercel Postgres).
-   * `IRIS_BASE_URL` & `IRIS_API_KEY`: Your DFIR-IRIS platform credentials.
-3. **Deploy**: Click **Deploy**. Vercel will build the serverless functions and host the application.
-
-*Note: On serverless platforms, SQLite automatically falls back to `/tmp/sla_tracker.db` if no external `DATABASE_URL` is supplied.*
-
-### Deploying to Render
-This repository includes a [render.yaml](file:///c:/Users/ma420/Downloads/automated-sla-tracker/automated-sla-tracker/render.yaml) Blueprint specification for automated deployment on Render using Gunicorn.
-
-1. **New Blueprint**: Navigate to [Render Blueprints Dashboard](https://dashboard.render.com/blueprints).
-2. **Connect Repository**: Select your GitHub repository (`SLA-Tracking-with-Shift-Handover-Report`).
-3. **Configure & Deploy**: Render will auto-detect `render.yaml` and configure a Web Service running `gunicorn app:app`. Add your runtime environment variables and click **Apply**.
-
----
-
-## 10. Known Limitations
-
-* **In-Memory Rate Limiting**: The login lockout counter is currently stored in memory. Relocating to a distributed cache (like Redis) is recommended for horizontal deployments to prevent counters from resetting during server restarts.
-* **Single Business Calendar**: The engine computes business hour SLAs based on a single customizable working window. A calendar table configuration is recommended to support complex, per-client shifts.
-* **Report Retention Policy**: Generated files are managed under a strict 90-day retention rule. Weekly, the scheduler executes the cleanup service which purges any database rows and corresponding disk files older than 90 days. Adjust the arguments in `services/cleanup_service.py` to change this duration.
-
----
-
-## 10. Deployment Guides (Vercel & Render)
-
-### Deploying to Vercel (Serverless)
-
-1. Ensure `vercel.json` is present in the project root directory.
-2. Install Vercel CLI (optional) or push your repository to GitHub:
-   ```bash
-   npm i -g vercel
-   vercel
-   ```
-3. In the Vercel Dashboard, set the following Environment Variables under **Settings -> Environment Variables**:
-   * `SECRET_KEY`: A secure random string.
-   * `DATABASE_URL`: PostgreSQL connection string (recommended for production) or let it fallback to `/tmp/sla_tracker.db` for ephemeral storage.
-   * `IRIS_BASE_URL` & `IRIS_API_KEY`: DFIR-IRIS credentials.
-   * `VERCEL`: Set to `1`.
-
-### Deploying to Render (Web Service)
-
-1. Connect your GitHub repository to Render.
-2. Select **Blueprints** and choose `render.yaml` from your repository, or create a new **Web Service** with:
-   * **Environment**: `Python 3`
-   * **Build Command**: `pip install -r requirements.txt`
-   * **Start Command**: `gunicorn app:app`
-3. Configure your Environment Variables (`SECRET_KEY`, `DATABASE_URL`, `IRIS_BASE_URL`, `IRIS_API_KEY`).
-4. Click **Deploy**.
-
+## 📝 License
+This project is licensed under the MIT License - see the LICENSE file for details.
