@@ -197,6 +197,26 @@ def client_toggle(client_id):
     return redirect(url_for("settings.client_list"))
 
 
+@settings_bp.route("/settings/clients/<int:client_id>/delete", methods=["POST"])
+@login_required
+@permission_required("manage_iris_settings")
+def client_delete(client_id):
+    client = Client.query.get_or_404(client_id)
+    c_name = client.name
+
+    linked_tickets = Ticket.query.filter_by(client_id=client.id).count()
+    if linked_tickets > 0:
+        flash(f"Cannot delete client '{c_name}': {linked_tickets} ticket(s) are linked to this client. Deactivate it instead.", "warning")
+        return redirect(url_for("settings.client_list"))
+
+    db.session.delete(client)
+    db.session.commit()
+
+    log_audit("delete_client", "Client", target_id=client_id, details=f"Deleted client '{c_name}'")
+    flash(f"Client '{c_name}' deleted successfully.", "info")
+    return redirect(url_for("settings.client_list"))
+
+
 @settings_bp.route("/settings/send-test-email", methods=["POST"])
 @login_required
 @permission_required("manage_iris_settings")

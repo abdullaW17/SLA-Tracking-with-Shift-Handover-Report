@@ -124,12 +124,20 @@ def generate_excel_report(app, report_type, generated_by_user_id=None, client_id
     tickets = _get_tickets_for_report(report_type, client_id)
     summary = _compute_summary_stats(tickets)
 
+    client_name = "All Clients"
+    if client_id:
+        from models import Client
+        c = Client.query.get(client_id)
+        if c:
+            client_name = c.name
+
     filename = _filename(report_type, "xlsx")
     filepath = os.path.join(folder, filename)
 
     with pd.ExcelWriter(filepath, engine="openpyxl") as writer:
         summary_df = pd.DataFrame([{
             "Report": report_type,
+            "Target Client": client_name,
             "Generated At": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
             **summary,
         }])
@@ -159,13 +167,16 @@ def generate_excel_report(app, report_type, generated_by_user_id=None, client_id
 # PDF generation with Executive Layout, Dynamic Page Numbers & Branding
 # ---------------------------------------------------------------------------
 
+from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
 class NumberedCanvas(canvas.Canvas):
     """
     Two-pass canvas that records total page count and draws professional
-    headers, footers, page numbers ('Page X of Y'), and branding logos.
+    headers, footers, page numbers ('Page X of Y'), and image logos on Portrait A4.
     """
+    logo_path = None
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._saved_page_states = []
@@ -184,27 +195,44 @@ class NumberedCanvas(canvas.Canvas):
 
     def draw_page_decorations(self, page_count):
         self.saveState()
-        self.setFont("Helvetica-Bold", 8)
-        self.setFillColor(colors.HexColor("#5a6a7e"))
 
-        # Top Header Accent Bar
+        # Top Header Accent Bar (A4 Portrait Width: 595.27 pt, Height: 841.89 pt)
         self.setFillColor(colors.HexColor("#1a2980"))
-        self.rect(0, 580, 842, 15, fill=True, stroke=False)
+        self.rect(0, 810, 595, 32, fill=True, stroke=False)
         self.setFillColor(colors.white)
-        self.drawString(36, 584, "AUTOMATED SLA TRACKER — EXECUTIVE REPORT")
+        self.setFont("Helvetica-Bold", 10)
+        self.drawString(36, 821, "AUTOMATED SLA TRACKER — EXECUTIVE REPORT")
+
+        # Top Header Logo
+        if self.logo_path and os.path.exists(self.logo_path):
+            try:
+                self.drawImage(self.logo_path, 550, 814, width=22, height=22, mask='auto', preserveAspectRatio=True)
+            except Exception:
+                pass
 
         # Bottom Footer Divider Line
         self.setStrokeColor(colors.HexColor("#e8ecf1"))
         self.setLineWidth(0.8)
-        self.line(36, 40, 806, 40)
+        self.line(36, 40, 559, 40)
 
-        # Footer Text & Page Numbering ("Page X of Y")
-        self.setFont("Helvetica", 8)
-        self.setFillColor(colors.HexColor("#5a6a7e"))
-        self.drawString(36, 26, "CONFIDENTIAL — AUTOMATED INCIDENT SLA ENGINE | DFIR-IRIS INTEGRATION")
-        
+        # Footer Logo & Text
+        if self.logo_path and os.path.exists(self.logo_path):
+            try:
+                self.drawImage(self.logo_path, 36, 18, width=16, height=16, mask='auto', preserveAspectRatio=True)
+                self.setFont("Helvetica", 8)
+                self.setFillColor(colors.HexColor("#5a6a7e"))
+                self.drawString(56, 22, "CONFIDENTIAL — AUTOMATED INCIDENT SLA ENGINE")
+            except Exception:
+                self.setFont("Helvetica", 8)
+                self.setFillColor(colors.HexColor("#5a6a7e"))
+                self.drawString(36, 22, "CONFIDENTIAL — AUTOMATED INCIDENT SLA ENGINE")
+        else:
+            self.setFont("Helvetica", 8)
+            self.setFillColor(colors.HexColor("#5a6a7e"))
+            self.drawString(36, 22, "CONFIDENTIAL — AUTOMATED INCIDENT SLA ENGINE")
+
         page_str = f"Page {self._pageNumber} of {page_count}"
-        self.drawRightString(806, 26, page_str)
+        self.drawRightString(559, 22, page_str)
         self.restoreState()
 
 
@@ -213,17 +241,27 @@ def generate_pdf_report(app, report_type, generated_by_user_id=None, client_id=N
     tickets = _get_tickets_for_report(report_type, client_id)
     summary = _compute_summary_stats(tickets)
 
+    client_name = "All Clients"
+    if client_id:
+        from models import Client
+        c = Client.query.get(client_id)
+        if c:
+            client_name = c.name
+
     filename = _filename(report_type, "pdf")
     filepath = os.path.join(folder, filename)
 
-    # Landscape A4 layout with clean margins
+    # Attach logo path to NumberedCanvas
+    NumberedCanvas.logo_path = os.path.join(app.root_path, "static", "images", "image.png")
+
+    # Standard Portrait A4 layout with clean margins
     doc = SimpleDocTemplate(
         filepath,
-        pagesize=landscape(A4),
-        leftMargin=1.2 * cm,
-        rightMargin=1.2 * cm,
-        topMargin=1.8 * cm,
-        bottomMargin=1.8 * cm,
+        pagesize=A4,
+        leftMargin=1.0 * cm,
+        rightMargin=1.0 * cm,
+        topMargin=1.6 * cm,
+        bottomMargin=1.6 * cm,
     )
 
     styles = getSampleStyleSheet()
@@ -233,8 +271,8 @@ def generate_pdf_report(app, report_type, generated_by_user_id=None, client_id=N
         "ExecReportTitle",
         parent=styles["Heading1"],
         fontName="Helvetica-Bold",
-        fontSize=20,
-        leading=24,
+        fontSize=18,
+        leading=22,
         textColor=colors.HexColor("#1a2980"),
         spaceAfter=4,
     )
@@ -243,10 +281,10 @@ def generate_pdf_report(app, report_type, generated_by_user_id=None, client_id=N
         "ExecReportMeta",
         parent=styles["Normal"],
         fontName="Helvetica",
-        fontSize=9,
-        leading=12,
+        fontSize=8.5,
+        leading=11.5,
         textColor=colors.HexColor("#5a6a7e"),
-        spaceAfter=14,
+        spaceAfter=12,
     )
 
     table_header_style = ParagraphStyle(
@@ -281,33 +319,33 @@ def generate_pdf_report(app, report_type, generated_by_user_id=None, client_id=N
     # Title & Metadata Section
     elements.append(Paragraph(report_type.upper(), title_style))
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-    elements.append(Paragraph(f"<b>Generated At:</b> {now_str} &nbsp;|&nbsp; <b>Total Scope:</b> {summary['total_tickets']} Incident Ticket(s)", meta_style))
+    elements.append(Paragraph(f"<b>Target Client:</b> {client_name} &nbsp;|&nbsp; <b>Generated At:</b> {now_str} &nbsp;|&nbsp; <b>Total Scope:</b> {summary['total_tickets']} Ticket(s)", meta_style))
 
-    # KPI Summary Cards Block
+    # KPI Summary Cards Block (Portrait A4 total width = 538 pt)
     summary_data = [
         [
-            Paragraph(f"<b>Total Incidents</b><br/><font size=12 color='#1a2980'><b>{summary['total_tickets']}</b></font>", styles["Normal"]),
-            Paragraph(f"<b>Within SLA</b><br/><font size=12 color='#28a745'><b>{summary['within_sla']}</b></font>", styles["Normal"]),
-            Paragraph(f"<b>Breached</b><br/><font size=12 color='#dc3545'><b>{summary['breached']}</b></font>", styles["Normal"]),
-            Paragraph(f"<b>Compliance Rate</b><br/><font size=12 color='#1a2980'><b>{summary['sla_compliance_percent']}%</b></font>", styles["Normal"]),
+            Paragraph(f"<b>Total Incidents</b><br/><font size=11 color='#1a2980'><b>{summary['total_tickets']}</b></font>", styles["Normal"]),
+            Paragraph(f"<b>Within SLA</b><br/><font size=11 color='#28a745'><b>{summary['within_sla']}</b></font>", styles["Normal"]),
+            Paragraph(f"<b>Breached</b><br/><font size=11 color='#dc3545'><b>{summary['breached']}</b></font>", styles["Normal"]),
+            Paragraph(f"<b>Compliance Rate</b><br/><font size=11 color='#1a2980'><b>{summary['sla_compliance_percent']}%</b></font>", styles["Normal"]),
         ]
     ]
-    summary_table = Table(summary_data, colWidths=[190, 190, 190, 190], hAlign="LEFT")
+    summary_table = Table(summary_data, colWidths=[134, 134, 134, 134], hAlign="LEFT")
     summary_table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f8f9fa")),
         ("BOX", (0, 0), (-1, -1), 0.8, colors.HexColor("#d5dde8")),
         ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e8ecf1")),
-        ("PADDING", (0, 0), (-1, -1), 6),
+        ("PADDING", (0, 0), (-1, -1), 5),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
     ]))
     elements.append(summary_table)
-    elements.append(Spacer(1, 14))
+    elements.append(Spacer(1, 12))
 
     # Main Detailed Table Setup
     if report_type == "Analyst Performance Report":
         rows = _analyst_performance_rows(tickets)
         headers = ["Analyst Name", "Total Tickets", "Within SLA", "Breached", "Compliance %"]
-        col_widths = [240, 130, 130, 130, 130]
+        col_widths = [176, 90, 90, 90, 90]
         
         table_data = [[Paragraph(h, table_header_style) for h in headers]]
         for r in rows:
@@ -323,7 +361,7 @@ def generate_pdf_report(app, report_type, generated_by_user_id=None, client_id=N
     else:
         rows = _tickets_to_rows(tickets)
         headers = ["Ticket ID", "Title", "Status", "SLA Rule Applied", "Resolution Deadline", "SLA Status", "Breach Min"]
-        col_widths = [95, 230, 75, 135, 105, 80, 45]
+        col_widths = [75, 145, 55, 95, 75, 60, 31]
 
         table_data = [[Paragraph(h, table_header_style) for h in headers]]
         for r in rows[:500]:
@@ -345,7 +383,7 @@ def generate_pdf_report(app, report_type, generated_by_user_id=None, client_id=N
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1a2980")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#e8ecf1")),
-        ("PADDING", (0, 0), (-1, -1), 4.5),
+        ("PADDING", (0, 0), (-1, -1), 4),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8f9fa")]),
     ]))
